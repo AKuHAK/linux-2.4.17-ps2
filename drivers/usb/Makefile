@@ -48,7 +48,11 @@ obj-	:=
 obj-$(CONFIG_USB)		+= usbcore.o
 obj-$(CONFIG_USB_UHCI)		+= usb-uhci.o
 obj-$(CONFIG_USB_UHCI_ALT)	+= uhci.o
+obj-$(CONFIG_USB_MPC8xx)	+= m8xxhci.o
 obj-$(CONFIG_USB_OHCI)		+= usb-ohci.o
+obj-$(CONFIG_USB_OHCI_SA1111)	+= usb-ohci-sa1111.o
+obj-$(CONFIG_USB_NON_PCI_OHCI)	+= usb-ohci-nonpci.o
+obj-$(CONFIG_USB_OCP_OHCI)      += usb-ocp-ohci.o
 
 obj-$(CONFIG_USB_MOUSE)		+= usbmouse.o
 obj-$(CONFIG_USB_HID)		+= hid.o

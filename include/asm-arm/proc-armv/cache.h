@@ -44,15 +44,16 @@
 
 #define flush_cache_range(_mm,_start,_end)				\
 	do {								\
-		if ((_mm) == current->mm)				\
+		if ((_mm) == current->active_mm)			\
 			cpu_cache_clean_invalidate_range((_start), (_end), 1); \
 	} while (0)
 
 #define flush_cache_page(_vma,_vmaddr)					\
 	do {								\
-		if ((_vma)->vm_mm == current->mm) {			\
-			cpu_cache_clean_invalidate_range((_vmaddr),	\
-				(_vmaddr) + PAGE_SIZE,			\
+		if ((_vma)->vm_mm == current->active_mm) {		\
+			unsigned long _addr = (_vmaddr) & PAGE_MASK;	\
+			cpu_cache_clean_invalidate_range(_addr,		\
+				_addr + PAGE_SIZE,			\
 				((_vma)->vm_flags & VM_EXEC));		\
 		} \
 	} while (0)

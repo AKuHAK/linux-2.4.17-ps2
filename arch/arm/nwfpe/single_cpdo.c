@@ -19,9 +19,9 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
+#include "fpa11.h"
 #include "softfloat.h"
 #include "fpopcode.h"
-#include "fpa11.h"
 
 float32 float32_exp(float32 Fm);
 float32 float32_ln(float32 Fm);

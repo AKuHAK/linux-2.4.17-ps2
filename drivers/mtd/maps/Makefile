@@ -1,7 +1,7 @@
 #
 # linux/drivers/maps/Makefile
 #
-# $Id: Makefile,v 1.13 2001/08/16 15:16:58 rmk Exp $
+# $Id: Makefile,v 1.17 2001/11/29 18:43:29 ppopov Exp $
 
 O_TARGET	:= mapslink.o
 
@@ -12,8 +12,12 @@ obj-$(CONFIG_MTD_CFI_FLAGADM)	+= cfi_flagadm.o
 obj-$(CONFIG_MTD_CSTM_MIPS_IXX) += cstm_mips_ixx.o
 obj-$(CONFIG_MTD_DC21285)       += dc21285.o
 obj-$(CONFIG_MTD_ELAN_104NC)    += elan-104nc.o
+obj-$(CONFIG_MTD_EPXA10DB)      += epxa10db-flash.o
 obj-$(CONFIG_MTD_IQ80310)	+= iq80310.o
+obj-$(CONFIG_MTD_IQ80321)	+= iq80321.o
+obj-$(CONFIG_MTD_LUBBOCK)	+= lubbock.o
 obj-$(CONFIG_MTD_L440GX)	+= l440gx.o
+obj-$(CONFIG_MTD_MBX860)	+= mbx860.o
 obj-$(CONFIG_MTD_NORA)		+= nora.o
 obj-$(CONFIG_MTD_OCTAGON)	+= octagon-5066.o
 obj-$(CONFIG_MTD_PHYSMAP)	+= physmap.o 
@@ -21,13 +25,29 @@ obj-$(CONFIG_MTD_PNC2000)	+= pnc2000.o
 obj-$(CONFIG_MTD_RPXLITE)	+= rpxlite.o
 obj-$(CONFIG_MTD_TQM8XXL)	+= tqm8xxl.o
 obj-$(CONFIG_MTD_SA1100)        += sa1100-flash.o
+ifeq ($(CONFIG_ASSABET_NEPONSET),y)
+  obj-$(CONFIG_MTD_SA1100)      += neponset-flash.o
+endif
 obj-$(CONFIG_MTD_SBC_GXX)	+= sbc_gxx.o
 obj-$(CONFIG_MTD_SC520CDP)	+= sc520cdp.o
 obj-$(CONFIG_MTD_NETSC520)	+= netsc520.o
 obj-$(CONFIG_MTD_SUN_UFLASH)    += sun_uflash.o
 obj-$(CONFIG_MTD_VMAX)		+= vmax301.o
 obj-$(CONFIG_MTD_DBOX2)		+= dbox2-flash.o
+obj-$(CONFIG_MTD_POWERPLUS)	+= powerplus.o
+obj-$(CONFIG_MTD_PPMC260)	+= ppmc260.o
+obj-$(CONFIG_MTD_POWERPMC250)	+= powerpmc250.o
 obj-$(CONFIG_MTD_OCELOT)	+= ocelot.o
 obj-$(CONFIG_MTD_SOLUTIONENGINE)+= solutionengine.o
+obj-$(CONFIG_MTD_PCI)		+= pci.o
+obj-$(CONFIG_MTD_PB1000)        += pb1xxx-flash.o
+obj-$(CONFIG_MTD_PB1500)        += pb1xxx-flash.o
+obj-$(CONFIG_MTD_PB1100)        += pb1xxx-flash.o
+obj-$(CONFIG_MTD_REDWOOD)	+= redwood.o
+obj-$(CONFIG_MTD_K2)		+= k2.o
+obj-$(CONFIG_MTD_BRH)		+= brh.o
+obj-$(CONFIG_MTD_IXDP425)	+= ixdp425.o
+
+CFLAGS_powerpmc250.o += -mhard-float
 
 include $(TOPDIR)/Rules.make

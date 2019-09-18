@@ -67,6 +67,23 @@ int oops_in_progress;
 static DECLARE_MUTEX(console_sem);
 struct console *console_drivers;
 
+#ifdef CONFIG_BRINGUP_RAW_SERIAL_IO
+static void
+printk_bringup_write( char ch )
+{
+  extern void (*printk_bringup_raw_serial_io_putc)(char ch);
+
+  if ( ch == '\n' ) 
+  {
+    printk_bringup_raw_serial_io_putc( '\r' );
+  }
+
+  printk_bringup_raw_serial_io_putc( ch );
+
+  return;
+}
+#endif
+
 /*
  * logbuf_lock protects log_buf, log_start, log_end, con_start and logged_chars
  * It is also used in interesting ways to provide interlocking in
@@ -377,6 +394,10 @@ static void call_console_drivers(unsigned long start, unsigned long end)
 
 static void emit_log_char(char c)
 {
+#ifdef CONFIG_BRINGUP_RAW_SERIAL_IO
+	printk_bringup_write( c );
+#else
+	//printk_bringup_write( c );
 	LOG_BUF(log_end) = c;
 	log_end++;
 	if (log_end - log_start > LOG_BUF_LEN)
@@ -385,6 +406,7 @@ static void emit_log_char(char c)
 		con_start = log_end - LOG_BUF_LEN;
 	if (logged_chars < LOG_BUF_LEN)
 		logged_chars++;
+#endif
 }
 
 /*

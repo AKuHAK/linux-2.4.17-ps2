@@ -5,7 +5,7 @@
  *
  * This code is GPL
  *
- * $Id: mtdpart.c,v 1.23 2001/10/02 15:05:11 dwmw2 Exp $
+ * $Id: mtdpart.c,v 1.25 2001/11/27 14:55:11 cdavies Exp $
  */
 
 #include <linux/module.h>
@@ -195,6 +195,9 @@ int add_mtd_partitions(struct mtd_info *master,
 		slave->mtd.oobsize = master->oobsize;
 		slave->mtd.ecctype = master->ecctype;
 		slave->mtd.eccsize = master->eccsize;
+		slave->mtd.read_user_prot_reg = master->read_user_prot_reg;
+		slave->mtd.read_fact_prot_reg = master->read_fact_prot_reg;
+		slave->mtd.write_user_prot_reg = master->write_user_prot_reg;
 
 		slave->mtd.name = parts[i].name;
 		slave->mtd.bank_size = master->bank_size;
@@ -225,6 +228,15 @@ int add_mtd_partitions(struct mtd_info *master,
 
 		if (slave->offset == MTDPART_OFS_APPEND)
 			slave->offset = cur_offset;
+		if (slave->offset == MTDPART_OFS_NXTBLK) {
+			u_int32_t emask = master->erasesize-1;
+			slave->offset = (cur_offset + emask) & ~emask;
+			if (slave->offset != cur_offset) {
+				printk(KERN_NOTICE "Moving partition %d: "
+				       "0x%08x -> 0x%08x\n", i,
+				       cur_offset, slave->offset);
+			}
+		}
 		if (slave->mtd.size == MTDPART_SIZ_FULL)
 			slave->mtd.size = master->size - slave->offset;
 		cur_offset = slave->offset + slave->mtd.size;

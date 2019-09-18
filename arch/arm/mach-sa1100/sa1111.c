@@ -45,12 +45,12 @@ void sa1111_IRQ_demux( int irq, void *dev_id, struct pt_regs *regs )
 		if( stat0 )
 			for( i = 0; i < 32; i++ )
 				if( stat0 & (1<<i) )
-					do_IRQ( SA1111_IRQ(i), regs );
+					do_IRQ(IRQ_SA1111_START + i, regs);
 
 		if( stat1 )
 			for( i = 32; i < 55; i++ )
 				if( stat1 & (1<<(i-32)) )
-					do_IRQ( SA1111_IRQ(i), regs );
+					do_IRQ(IRQ_SA1111_START + i, regs);
 	}
 }
 
@@ -60,9 +60,12 @@ static struct irqaction sa1111_irq = {
 	flags:		SA_INTERRUPT
 };
 
+#define SA1111_IRQMASK_LO(x)	(1 << (x - IRQ_SA1111_START))
+#define SA1111_IRQMASK_HI(x)	(1 << (x - IRQ_SA1111_START - 32))
+
 static void sa1111_mask_and_ack_lowirq(unsigned int irq)
 {
-	unsigned int mask = 1 << (irq - SA1111_IRQ(0));
+	unsigned int mask = SA1111_IRQMASK_LO(irq);
 
 	// broken hardware: interrupt events are lost if they occur
 	// while the interrupts are disabled.
@@ -72,7 +75,7 @@ static void sa1111_mask_and_ack_lowirq(unsigned int irq)
 
 static void sa1111_mask_and_ack_highirq(unsigned int irq)
 {
-	unsigned int mask = 1 << (irq - SA1111_IRQ(32));
+	unsigned int mask = SA1111_IRQMASK_HI(irq);
 
 	//INTEN1 &= ~mask;
 	INTSTATCLR1 = mask;
@@ -80,22 +83,22 @@ static void sa1111_mask_and_ack_highirq(unsigned int irq)
 
 static void sa1111_mask_lowirq(unsigned int irq)
 {
-	//INTEN0 &= ~(1 << (irq - SA1111_IRQ(0)));
+	//INTEN0 &= ~SA1111_IRQMASK_LO(irq);
 }
 
 static void sa1111_mask_highirq(unsigned int irq)
 {
-	//INTEN1 &= ~(1 << (irq - SA1111_IRQ(32)));
+	//INTEN1 &= ~SA1111_IRQMASK_HI(irq);
 }
 
 static void sa1111_unmask_lowirq(unsigned int irq)
 {
-	INTEN0 |= 1 << (irq - SA1111_IRQ(0));
+	INTEN0 |= SA1111_IRQMASK_LO(irq);
 }
 
 static void sa1111_unmask_highirq(unsigned int irq)
 {
-	INTEN1 |= 1 << ((irq - SA1111_IRQ(32)));
+	INTEN1 |= SA1111_IRQMASK_HI(irq);
 }
 
 void __init sa1111_init_irq(int irq_nr)
@@ -111,21 +114,21 @@ void __init sa1111_init_irq(int irq_nr)
 	 * specifies that S0ReadyInt and S1ReadyInt should be '1'.
 	 */
 	INTPOL0 = 0;
-	INTPOL1 = 1 << (S0_READY_NINT - SA1111_IRQ(32)) |
-		  1 << (S1_READY_NINT - SA1111_IRQ(32));
+	INTPOL1 = SA1111_IRQMASK_HI(S0_READY_NINT) |
+		  SA1111_IRQMASK_HI(S1_READY_NINT);
 
 	/* clear all IRQs */
 	INTSTATCLR0 = -1;
 	INTSTATCLR1 = -1;
 
-	for (irq = SA1111_IRQ(0); irq <= SA1111_IRQ(26); irq++) {
+	for (irq = IRQ_GPAIN0; irq <= SSPROR; irq++) {
 		irq_desc[irq].valid	= 1;
 		irq_desc[irq].probe_ok	= 0;
 		irq_desc[irq].mask_ack	= sa1111_mask_and_ack_lowirq;
 		irq_desc[irq].mask	= sa1111_mask_lowirq;
 		irq_desc[irq].unmask	= sa1111_unmask_lowirq;
 	}
-	for (irq = SA1111_IRQ(32); irq <= SA1111_IRQ(54); irq++) {
+	for (irq = AUDXMTDMADONEA; irq <= S1_BVD1_STSCHG; irq++) {
 		irq_desc[irq].valid	= 1;
 		irq_desc[irq].probe_ok	= 0;
 		irq_desc[irq].mask_ack	= sa1111_mask_and_ack_highirq;
@@ -175,13 +178,23 @@ int __init sa1111_probe(void)
  */
 void sa1111_wake(void)
 {
+	unsigned long flags;
+
+	local_irq_save(flags);
+
 	/*
 	 * First, set up the 3.6864MHz clock on GPIO 27 for the SA-1111:
 	 * (SA-1110 Developer's Manual, section 9.1.2.1)
 	 */
+#if CONFIG_ARCH_SA1100
 	GAFR |= GPIO_32_768kHz;
 	GPDR |= GPIO_32_768kHz;
 	TUCR = TUCR_3_6864MHz;
+#elif CONFIG_ARCH_PXA
+	set_GPIO_mode(GPIO11_3_6MHz_MD);
+#else
+#error missing clock setup
+#endif
 
 	/*
 	 * Turn VCO on, and disable PLL Bypass.
@@ -210,6 +223,8 @@ void sa1111_wake(void)
 	 * Ensure all clocks are initially off.
 	 */
 	SKPCR = 0;
+
+	local_irq_restore(flags);
 }
 
 void sa1111_doze(void)
@@ -234,6 +249,8 @@ void sa1111_configure_smc(int sdram, unsigned int drac, unsigned int cas_latency
 	SBI_SMCR = smcr;
 }
 
+#ifdef CONFIG_ARCH_SA1100
+
 /*
  * Disable the memory bus request/grant signals on the SA1110 to
  * ensure that we don't receive spurious memory requests.  We set
@@ -242,12 +259,17 @@ void sa1111_configure_smc(int sdram, unsigned int drac, unsigned int cas_latency
  */
 void __init sa1110_mb_disable(void)
 {
+	unsigned long flags;
+
+	local_irq_save(flags);
+	
 	PGSR &= ~GPIO_MBGNT;
 	GPCR = GPIO_MBGNT;
 	GPDR = (GPDR & ~GPIO_MBREQ) | GPIO_MBGNT;
 
 	GAFR &= ~(GPIO_MBGNT | GPIO_MBREQ);
 
+	local_irq_restore(flags);
 }
 
 /*
@@ -256,10 +278,18 @@ void __init sa1110_mb_disable(void)
  */
 void __init sa1110_mb_enable(void)
 {
+	unsigned long flags;
+
+	local_irq_save(flags);
+
 	PGSR &= ~GPIO_MBGNT;
 	GPCR = GPIO_MBGNT;
 	GPDR = (GPDR & ~GPIO_MBREQ) | GPIO_MBGNT;
 
 	GAFR |= (GPIO_MBGNT | GPIO_MBREQ);
 	TUCR |= TUCR_MR;
+
+	local_irq_restore(flags);
 }
+
+#endif

@@ -192,6 +192,9 @@ struct tag_acorn {
 	u8 adfsdrives;
 };
 
+#include <linux/mtd/bootldr.h>
+#define ATAG_PTABLE	0x53410001
+
 /* footbridge memory clock, see arch/arm/mach-footbridge/arch.c */
 #define ATAG_MEMCLK	0x41000402
 
@@ -211,6 +214,7 @@ struct tag {
 		struct tag_revision	revision;
 		struct tag_videolfb	videolfb;
 		struct tag_cmdline	cmdline;
+                struct tag_ptable	ptable;  
 
 		/*
 		 * Acorn specific

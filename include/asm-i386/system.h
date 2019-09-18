@@ -311,12 +311,36 @@ static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 
 /* interrupt control.. */
 #define __save_flags(x)		__asm__ __volatile__("pushfl ; popl %0":"=g" (x): /* no input */)
+#ifdef CONFIG_ILATENCY
+extern void intr_cli(const char *, unsigned);
+extern void intr_sti(const char *, unsigned, int);
+extern void intr_restore_flags(const char *, unsigned, unsigned);
+extern void intr_sync_flag(const char *, unsigned lineno); 
+
+#define __intr_cli()                    __asm__ __volatile__("cli": : :"memory")
+#define __intr_sti()                    __asm__ __volatile__("sti": : :"memory")
+#define __intr_restore_flags(x)         __asm__ __volatile__("pushl %0 ; popfl": /* no output */ :"g" (x):"memory")
+#define safe_halt()                     __sti()
+
+#define irqs_disabled()			\
+({					\
+	unsigned long flags;		\
+	__save_flags(flags);	\
+	!(flags & (1<<9));		\
+})
+
+
+#define __cli() intr_cli(__BASE_FILE__, __LINE__)
+#define __sti() intr_sti(__BASE_FILE__, __LINE__,0)
+#define __restore_flags(x) intr_restore_flags(__BASE_FILE__, __LINE__, x)
+
+#else
 #define __restore_flags(x) 	__asm__ __volatile__("pushl %0 ; popfl": /* no output */ :"g" (x):"memory", "cc")
 #define __cli() 		__asm__ __volatile__("cli": : :"memory")
 #define __sti()			__asm__ __volatile__("sti": : :"memory")
 /* used in the idle loop; sti takes one instruction cycle to complete */
 #define safe_halt()		__asm__ __volatile__("sti; hlt": : :"memory")
-
+#endif /* CONFIG_ILATENCY */
 /* For spinlocks etc */
 #define local_irq_save(x)	__asm__ __volatile__("pushfl ; popl %0 ; cli":"=g" (x): /* no input */ :"memory")
 #define local_irq_restore(x)	__restore_flags(x)

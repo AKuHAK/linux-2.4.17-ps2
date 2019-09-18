@@ -4,7 +4,7 @@
  *
  * (C) 2000 Red Hat. GPL'd
  *
- * $Id: cfi_cmdset_0001.c,v 1.87 2001/10/02 15:05:11 dwmw2 Exp $
+ * $Id: cfi_cmdset_0001.c,v 1.88 2001/11/27 14:55:12 cdavies Exp $
  *
  * 
  * 10/10/2000	Nicolas Pitre <nico@cam.org>
@@ -31,6 +31,8 @@
 #include <linux/mtd/compatmac.h>
 
 static int cfi_intelext_read (struct mtd_info *, loff_t, size_t, size_t *, u_char *);
+static int cfi_intelext_read_user_prot_reg (struct mtd_info *, loff_t, size_t, size_t *, u_char *);
+static int cfi_intelext_read_fact_prot_reg (struct mtd_info *, loff_t, size_t, size_t *, u_char *);
 static int cfi_intelext_write_words(struct mtd_info *, loff_t, size_t, size_t *, const u_char *);
 static int cfi_intelext_write_buffers(struct mtd_info *, loff_t, size_t, size_t *, const u_char *);
 static int cfi_intelext_erase_varsize(struct mtd_info *, struct erase_info *);
@@ -151,15 +153,16 @@ struct mtd_info *cfi_cmdset_0001(struct map_info *map, int primary)
 		/* Do some byteswapping if necessary */
 		extp->FeatureSupport = cfi32_to_cpu(extp->FeatureSupport);
 		extp->BlkStatusRegMask = cfi32_to_cpu(extp->BlkStatusRegMask);
-		
+		extp->ProtRegAddr = cfi32_to_cpu(extp->ProtRegAddr);
+			
 #ifdef DEBUG_CFI_FEATURES
 		/* Tell the user about it in lots of lovely detail */
 		cfi_tell_features(extp);
 #endif	
 
 		/* Install our own private info structure */
-		cfi->cmdset_priv = extp;
-	}	
+		cfi->cmdset_priv = extp;	
+	}
 
 	for (i=0; i< cfi->numchips; i++) {
 		cfi->chips[i].word_write_time = 128;
@@ -247,6 +250,8 @@ static struct mtd_info *cfi_intelext_setup(struct map_info *map)
 		//printk(KERN_INFO "Using word write method\n" );
 		mtd->write = cfi_intelext_write_words;
 	}
+	mtd->read_user_prot_reg = cfi_intelext_read_user_prot_reg;
+	mtd->read_fact_prot_reg = cfi_intelext_read_fact_prot_reg;
 	mtd->sync = cfi_intelext_sync;
 	mtd->lock = cfi_intelext_lock;
 	mtd->unlock = cfi_intelext_unlock;
@@ -262,7 +267,7 @@ static struct mtd_info *cfi_intelext_setup(struct map_info *map)
 
 static inline int do_read_onechip(struct map_info *map, struct flchip *chip, loff_t adr, size_t len, u_char *buf)
 {
-	__u32 status, status_OK;
+	cfi_word status, status_OK;
 	unsigned long timeo;
 	DECLARE_WAITQUEUE(wait, current);
 	int suspended = 0;
@@ -312,7 +317,7 @@ static inline int do_read_onechip(struct map_info *map, struct flchip *chip, lof
 				chip->state = FL_ERASING;
 				spin_unlock_bh(chip->mutex);
 				printk(KERN_ERR "Chip not ready after erase "
-				       "suspended: status = 0x%x\n", status);
+				       "suspended: status = 0x%llx\n", (__u64)status);
 				return -EIO;
 			}
 			
@@ -350,7 +355,7 @@ static inline int do_read_onechip(struct map_info *map, struct flchip *chip, lof
 		/* Urgh. Chip not yet ready to talk to us. */
 		if (time_after(jiffies, timeo)) {
 			spin_unlock_bh(chip->mutex);
-			printk(KERN_ERR "waiting for chip to be ready timed out in read. WSM status = %x\n", status);
+			printk(KERN_ERR "waiting for chip to be ready timed out in read. WSM status = %llx\n", (__u64)status);
 			return -EIO;
 		}
 
@@ -433,10 +438,119 @@ static int cfi_intelext_read (struct mtd_info *mtd, loff_t from, size_t len, siz
 	return ret;
 }
 
-static int do_write_oneword(struct map_info *map, struct flchip *chip, unsigned long adr, __u32 datum)
+static int cfi_intelext_read_prot_reg (struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char *buf, int base_offst, int reg_sz)
+{
+	struct map_info *map = mtd->priv;
+	struct cfi_private *cfi = map->fldrv_priv;
+	struct cfi_pri_intelext *extp=cfi->cmdset_priv;
+	int ofs_factor = cfi->interleave * cfi->device_type;
+	int   count=len;
+	struct flchip *chip;
+	int chip_num,offst;
+	unsigned long timeo;
+	DECLARE_WAITQUEUE(wait, current);
+
+	/* Calculate which chip & protection register offset we need */
+	chip_num=((unsigned int)from/reg_sz);
+	offst=from-(reg_sz*chip_num)+base_offst;
+
+	while(count){
+		
+		if(chip_num>=cfi->numchips)
+			goto out;
+
+		/* Make sure that the chip is in the right state */
+
+		timeo = jiffies + HZ;
+		chip=&cfi->chips[chip_num];
+	retry:		
+		spin_lock_bh(chip->mutex);
+	
+		switch (chip->state) {
+		case FL_READY:
+		case FL_STATUS:
+		case FL_CFI_QUERY:
+		case FL_JEDEC_QUERY:
+			break;
+		
+		default:
+				/* Stick ourselves on a wait queue to be woken when
+				   someone changes the status */
+			set_current_state(TASK_UNINTERRUPTIBLE);
+			add_wait_queue(&chip->wq, &wait);
+			spin_unlock_bh(chip->mutex);
+			schedule();
+			remove_wait_queue(&chip->wq, &wait);
+			timeo = jiffies + HZ;
+			goto retry;
+		}
+			
+		/* Now read the data required from this flash */
+       
+		cfi_send_gen_cmd(0x90, 0x55,chip->start, map, cfi, cfi->device_type, NULL);
+		while(count && ((offst-base_offst)<reg_sz)){
+			*buf=map->read8(map,(chip->start+(extp->ProtRegAddr*ofs_factor)+offst));
+			buf++;
+			offst++;
+			count--;
+		}
+	       
+		chip->state=FL_CFI_QUERY;
+		spin_unlock_bh(chip->mutex);
+		/* Move on to the next chip */
+		chip_num++;
+		offst=base_offst;
+	
+	}
+	
+ out:	
+	wake_up(&chip->wq);
+	return len-count;
+}
+	
+static int cfi_intelext_read_user_prot_reg (struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char *buf)
+{
+	struct map_info *map = mtd->priv;
+	struct cfi_private *cfi = map->fldrv_priv;
+	struct cfi_pri_intelext *extp=cfi->cmdset_priv;
+	int base_offst,reg_sz;
+	
+	/* Check that we actually have some protection registers */
+	if(!(extp->FeatureSupport&64)){
+		printk(KERN_WARNING "%s: This flash device has no protection data to read!\n",map->name);
+		return 0;
+	}
+
+	base_offst=(1<<extp->FactProtRegSize);
+	reg_sz=(1<<extp->UserProtRegSize);
+
+	return cfi_intelext_read_prot_reg(mtd, from, len, retlen, buf, base_offst, reg_sz);
+}
+
+static int cfi_intelext_read_fact_prot_reg (struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char *buf)
+{
+	struct map_info *map = mtd->priv;
+	struct cfi_private *cfi = map->fldrv_priv;
+	struct cfi_pri_intelext *extp=cfi->cmdset_priv;
+	int base_offst,reg_sz;
+	
+	/* Check that we actually have some protection registers */
+	if(!(extp->FeatureSupport&64)){
+		printk(KERN_WARNING "%s: This flash device has no protection data to read!\n",map->name);
+		return 0;
+	}
+
+	base_offst=0;
+	reg_sz=(1<<extp->FactProtRegSize);
+
+	return cfi_intelext_read_prot_reg(mtd, from, len, retlen, buf, base_offst, reg_sz);
+}
+
+
+static int do_write_oneword(struct map_info *map, struct flchip *chip, unsigned long adr, cfi_word datum)
 {
 	struct cfi_private *cfi = map->fldrv_priv;
-	__u32 status, status_OK;
+	cfi_word status, status_OK;
 	unsigned long timeo;
 	DECLARE_WAITQUEUE(wait, current);
 	int z;
@@ -584,7 +698,7 @@ static int cfi_intelext_write_words (struct mtd_info *mtd, loff_t to , size_t le
 		int gap = ofs - bus_ofs;
 		int i = 0, n = 0;
 		u_char tmp_buf[4];
-		__u32 datum;
+		cfi_word datum;
 
 		while (gap--)
 			tmp_buf[i++] = 0xff;
@@ -597,6 +711,8 @@ static int cfi_intelext_write_words (struct mtd_info *mtd, loff_t to , size_t le
 			datum = *(__u16*)tmp_buf;
 		} else if (cfi_buswidth_is_4()) {
 			datum = *(__u32*)tmp_buf;
+		} else if (cfi_buswidth_is_8()) {
+			datum = *(__u64*)tmp_buf;
 		} else {
 			return -EINVAL;  /* should never happen, but be safe */
 		}
@@ -619,7 +735,7 @@ static int cfi_intelext_write_words (struct mtd_info *mtd, loff_t to , size_t le
 	}
 	
 	while(len >= CFIDEV_BUSWIDTH) {
-		__u32 datum;
+		cfi_word datum;
 
 		if (cfi_buswidth_is_1()) {
 			datum = *(__u8*)buf;
@@ -652,7 +768,7 @@ static int cfi_intelext_write_words (struct mtd_info *mtd, loff_t to , size_t le
 	if (len & (CFIDEV_BUSWIDTH-1)) {
 		int i = 0, n = 0;
 		u_char tmp_buf[4];
-		__u32 datum;
+		cfi_word datum;
 
 		while (len--)
 			tmp_buf[i++] = buf[n++];
@@ -663,6 +779,8 @@ static int cfi_intelext_write_words (struct mtd_info *mtd, loff_t to , size_t le
 			datum = *(__u16*)tmp_buf;
 		} else if (cfi_buswidth_is_4()) {
 			datum = *(__u32*)tmp_buf;
+		} else if (cfi_buswidth_is_8()) {
+			datum = *(__u64*)tmp_buf;
 		} else {
 			return -EINVAL;  /* should never happen, but be safe */
 		}
@@ -683,7 +801,7 @@ static inline int do_write_buffer(struct map_info *map, struct flchip *chip,
 				  unsigned long adr, const u_char *buf, int len)
 {
 	struct cfi_private *cfi = map->fldrv_priv;
-	__u32 status, status_OK;
+	cfi_word status, status_OK;
 	unsigned long cmd_adr, timeo;
 	DECLARE_WAITQUEUE(wait, current);
 	int wbufsize, z;
@@ -761,7 +879,7 @@ static inline int do_write_buffer(struct map_info *map, struct flchip *chip,
 			chip->state = FL_STATUS;
 			DISABLE_VPP(map);
 			spin_unlock_bh(chip->mutex);
-			printk(KERN_ERR "Chip not ready for buffer write. Xstatus = %x, status = %x\n", status, cfi_read(map, cmd_adr));
+			printk(KERN_ERR "Chip not ready for buffer write. Xstatus = %llx, status = %llx\n", (__u64)status, (__u64) cfi_read(map, cmd_adr));
 			return -EIO;
 		}
 	}
@@ -777,6 +895,8 @@ static inline int do_write_buffer(struct map_info *map, struct flchip *chip,
 			map->write16 (map, *((__u16*)buf)++, adr+z);
 		} else if (cfi_buswidth_is_4()) {
 			map->write32 (map, *((__u32*)buf)++, adr+z);
+		} else if (cfi_buswidth_is_8()) {
+			map->write64 (map, *((__u64*)buf)++, adr+z);
 		} else {
 			DISABLE_VPP(map);
 			return -EINVAL;
@@ -930,7 +1050,7 @@ static int cfi_intelext_write_buffers (struct mtd_info *mtd, loff_t to,
 static inline int do_erase_oneblock(struct map_info *map, struct flchip *chip, unsigned long adr)
 {
 	struct cfi_private *cfi = map->fldrv_priv;
-	__u32 status, status_OK;
+	cfi_word status, status_OK;
 	unsigned long timeo;
 	int retries = 3;
 	DECLARE_WAITQUEUE(wait, current);
@@ -1020,7 +1140,7 @@ retry:
 		if (time_after(jiffies, timeo)) {
 			cfi_write(map, CMD(0x70), adr);
 			chip->state = FL_STATUS;
-			printk(KERN_ERR "waiting for erase to complete timed out. Xstatus = %x, status = %x.\n", status, cfi_read(map, adr));
+			printk(KERN_ERR "waiting for erase to complete timed out. Xstatus = %llx, status = %llx.\n", (__u64) status, (__u64) cfi_read(map, adr));
 			DISABLE_VPP(map);
 			spin_unlock_bh(chip->mutex);
 			return -EIO;
@@ -1048,31 +1168,31 @@ retry:
 			for (i = 1; i<CFIDEV_INTERLEAVE; i++) {
 				      chipstatus |= status >> (cfi->device_type * 8);
 			}
-			printk(KERN_WARNING "Status is not identical for all chips: 0x%x. Merging to give 0x%02x\n", status, chipstatus);
+			printk(KERN_WARNING "Status is not identical for all chips: 0x%llx. Merging to give 0x%02x\n", (__u64) status, chipstatus);
 		}
 		/* Reset the error bits */
 		cfi_write(map, CMD(0x50), adr);
 		cfi_write(map, CMD(0x70), adr);
 		
 		if ((chipstatus & 0x30) == 0x30) {
-			printk(KERN_NOTICE "Chip reports improper command sequence: status 0x%x\n", status);
+			printk(KERN_NOTICE "Chip reports improper command sequence: status 0x%llx\n", (__u64) status);
 			ret = -EIO;
 		} else if (chipstatus & 0x02) {
 			/* Protection bit set */
 			ret = -EROFS;
 		} else if (chipstatus & 0x8) {
 			/* Voltage */
-			printk(KERN_WARNING "Chip reports voltage low on erase: status 0x%x\n", status);
+			printk(KERN_WARNING "Chip reports voltage low on erase: status 0x%llx\n", (__u64) status);
 			ret = -EIO;
 		} else if (chipstatus & 0x20) {
 			if (retries--) {
-				printk(KERN_DEBUG "Chip erase failed at 0x%08lx: status 0x%x. Retrying...\n", adr, status);
+				printk(KERN_DEBUG "Chip erase failed at 0x%08lx: status 0x%llx. Retrying...\n", adr, (__u64) status);
 				timeo = jiffies + HZ;
 				chip->state = FL_STATUS;
 				spin_unlock_bh(chip->mutex);
 				goto retry;
 			}
-			printk(KERN_DEBUG "Chip erase failed at 0x%08lx: status 0x%x\n", adr, status);
+			printk(KERN_DEBUG "Chip erase failed at 0x%08lx: status 0x%llx\n", adr, (__u64) status);
 			ret = -EIO;
 		}
 	}
@@ -1233,7 +1353,7 @@ static void cfi_intelext_sync (struct mtd_info *mtd)
 static inline int do_lock_oneblock(struct map_info *map, struct flchip *chip, unsigned long adr)
 {
 	struct cfi_private *cfi = map->fldrv_priv;
-	__u32 status, status_OK;
+	cfi_word status, status_OK;
 	unsigned long timeo = jiffies + HZ;
 	DECLARE_WAITQUEUE(wait, current);
 
@@ -1306,7 +1426,7 @@ retry:
 		if (time_after(jiffies, timeo)) {
 			cfi_write(map, CMD(0x70), adr);
 			chip->state = FL_STATUS;
-			printk(KERN_ERR "waiting for lock to complete timed out. Xstatus = %x, status = %x.\n", status, cfi_read(map, adr));
+			printk(KERN_ERR "waiting for lock to complete timed out. Xstatus = %llx, status = %llx.\n", (__u64) status, (__u64) cfi_read(map, adr));
 			DISABLE_VPP(map);
 			spin_unlock_bh(chip->mutex);
 			return -EIO;
@@ -1455,7 +1575,7 @@ retry:
 		if (time_after(jiffies, timeo)) {
 			cfi_write(map, CMD(0x70), adr);
 			chip->state = FL_STATUS;
-			printk(KERN_ERR "waiting for unlock to complete timed out. Xstatus = %x, status = %x.\n", status, cfi_read(map, adr));
+			printk(KERN_ERR "waiting for unlock to complete timed out. Xstatus = %llx, status = %llx.\n", (__u64) status, (__u64) cfi_read(map, adr));
 			DISABLE_VPP(map);
 			spin_unlock_bh(chip->mutex);
 			return -EIO;

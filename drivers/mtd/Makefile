@@ -19,7 +19,7 @@ obj-            :=
 
 O_TARGET	:= mtdlink.o
 
-export-objs	:= mtdcore.o mtdpart.o redboot.o bootldr.o afs.o
+export-objs	:= mtdcore.o mtdpart.o redboot.o bootldr.o afs.o mtdconcat.o
 list-multi	:= nftl.o
 
 mod-subdirs	:= 
@@ -48,6 +48,7 @@ obj-$(CONFIG_MTD_PARTITIONS)	+= mtdpart.o
 obj-$(CONFIG_MTD_REDBOOT_PARTS) += redboot.o
 obj-$(CONFIG_MTD_BOOTLDR_PARTS) += bootldr.o
 obj-$(CONFIG_MTD_AFS_PARTS)	+= afs.o
+obj-$(CONFIG_MTD_CONCAT)	+= mtdconcat.o
 
 # 'Users' - code which presents functionality to userspace.
 obj-$(CONFIG_MTD_CHAR)		+= mtdchar.o

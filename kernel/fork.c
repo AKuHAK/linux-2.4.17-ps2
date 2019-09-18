@@ -21,6 +21,8 @@
 #include <linux/completion.h>
 #include <linux/personality.h>
 
+#include <linux/trace.h>
+
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/uaccess.h>
@@ -85,6 +87,7 @@ static int get_pid(unsigned long flags)
 {
 	static int next_safe = PID_MAX;
 	struct task_struct *p;
+	int pid;
 
 	if (flags & CLONE_PID)
 		return current->pid;
@@ -120,9 +123,10 @@ inside:
 		}
 		read_unlock(&tasklist_lock);
 	}
+	pid = last_pid;
 	spin_unlock(&lastpid_lock);
 
-	return last_pid;
+	return pid;
 }
 
 static inline int dup_mmap(struct mm_struct * mm)
@@ -604,6 +608,12 @@ int do_fork(unsigned long clone_flags, unsigned long stack_start,
 	if (p->binfmt && p->binfmt->module)
 		__MOD_INC_USE_COUNT(p->binfmt->module);
 
+#ifdef CONFIG_PREEMPT
+        /* Since we are keeping the context switch off state as part
+         * of the context, make sure we start with it off.
+         */
+	p->preempt_count = 1;
+#endif
 	p->did_exec = 0;
 	p->swappable = 0;
 	p->state = TASK_UNINTERRUPTIBLE;
@@ -682,10 +692,20 @@ int do_fork(unsigned long clone_flags, unsigned long stack_start,
 	 * more scheduling fairness. This is only important in the first
 	 * timeslice, on the long run the scheduling behaviour is unchanged.
 	 */
+        /*
+         * SCHED_FIFO tasks don't count down and have a negative counter.
+         * Don't change these, least they all end up at -1.
+ 	 */
+#ifdef CONFIG_RTSCHED
+        if (p->policy != SCHED_FIFO)
+#endif
+        {
+
 	p->counter = (current->counter + 1) >> 1;
 	current->counter >>= 1;
 	if (!current->counter)
 		current->need_resched = 1;
+        }
 
 	/*
 	 * Ok, add it to the run-queues and make it
@@ -721,6 +741,9 @@ int do_fork(unsigned long clone_flags, unsigned long stack_start,
 
 	if (p->ptrace & PT_PTRACED)
 		send_sig(SIGSTOP, p, 1);
+
+	/* Trace the event  */
+	TRACE_PROCESS(TRACE_EV_PROCESS_FORK, retval, 0);
 
 	wake_up_process(p);		/* do this last */
 	++total_forks;

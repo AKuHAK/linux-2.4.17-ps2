@@ -47,6 +47,8 @@
 #define DEVID_PDC20267	((ide_pci_devid_t){PCI_VENDOR_ID_PROMISE, PCI_DEVICE_ID_PROMISE_20267})
 #define DEVID_PDC20268  ((ide_pci_devid_t){PCI_VENDOR_ID_PROMISE, PCI_DEVICE_ID_PROMISE_20268})
 #define DEVID_PDC20268R ((ide_pci_devid_t){PCI_VENDOR_ID_PROMISE, PCI_DEVICE_ID_PROMISE_20268R})
+#define DEVID_PDC20269	((ide_pci_devid_t){PCI_VENDOR_ID_PROMISE, PCI_DEVICE_ID_PROMISE_20269})
+#define DEVID_PDC20275	((ide_pci_devid_t){PCI_VENDOR_ID_PROMISE, PCI_DEVICE_ID_PROMISE_20275})
 #define DEVID_RZ1000	((ide_pci_devid_t){PCI_VENDOR_ID_PCTECH,  PCI_DEVICE_ID_PCTECH_RZ1000})
 #define DEVID_RZ1001	((ide_pci_devid_t){PCI_VENDOR_ID_PCTECH,  PCI_DEVICE_ID_PCTECH_RZ1001})
 #define DEVID_SAMURAI	((ide_pci_devid_t){PCI_VENDOR_ID_PCTECH,  PCI_DEVICE_ID_PCTECH_SAMURAI_IDE})
@@ -55,6 +57,7 @@
 #define DEVID_CMD646	((ide_pci_devid_t){PCI_VENDOR_ID_CMD,     PCI_DEVICE_ID_CMD_646})
 #define DEVID_CMD648	((ide_pci_devid_t){PCI_VENDOR_ID_CMD,     PCI_DEVICE_ID_CMD_648})
 #define DEVID_CMD649	((ide_pci_devid_t){PCI_VENDOR_ID_CMD,     PCI_DEVICE_ID_CMD_649})
+#define DEVID_CMD680	((ide_pci_devid_t){PCI_VENDOR_ID_CMD,     PCI_DEVICE_ID_CMD_680})
 #define DEVID_SIS5513	((ide_pci_devid_t){PCI_VENDOR_ID_SI,      PCI_DEVICE_ID_SI_5513})
 #define DEVID_OPTI621	((ide_pci_devid_t){PCI_VENDOR_ID_OPTI,    PCI_DEVICE_ID_OPTI_82C621})
 #define DEVID_OPTI621V	((ide_pci_devid_t){PCI_VENDOR_ID_OPTI,    PCI_DEVICE_ID_OPTI_82C558})
@@ -66,6 +69,8 @@
 #define DEVID_AEC6210	((ide_pci_devid_t){PCI_VENDOR_ID_ARTOP,   PCI_DEVICE_ID_ARTOP_ATP850UF})
 #define DEVID_AEC6260	((ide_pci_devid_t){PCI_VENDOR_ID_ARTOP,   PCI_DEVICE_ID_ARTOP_ATP860})
 #define DEVID_AEC6260R	((ide_pci_devid_t){PCI_VENDOR_ID_ARTOP,   PCI_DEVICE_ID_ARTOP_ATP860R})
+#define DEVID_AEC6280	((ide_pci_devid_t){PCI_VENDOR_ID_ARTOP,   PCI_DEVICE_ID_ARTOP_ATP865})
+#define DEVID_AEC6280R	((ide_pci_devid_t){PCI_VENDOR_ID_ARTOP,   PCI_DEVICE_ID_ARTOP_ATP865R})
 #define DEVID_W82C105	((ide_pci_devid_t){PCI_VENDOR_ID_WINBOND, PCI_DEVICE_ID_WINBOND_82C105})
 #define DEVID_UM8673F	((ide_pci_devid_t){PCI_VENDOR_ID_UMC,     PCI_DEVICE_ID_UMC_UM8673F})
 #define DEVID_UM8886A	((ide_pci_devid_t){PCI_VENDOR_ID_UMC,     PCI_DEVICE_ID_UMC_UM8886A})
@@ -84,6 +89,7 @@
 #define DEVID_OSB4	((ide_pci_devid_t){PCI_VENDOR_ID_SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_OSB4IDE})
 #define DEVID_CSB5	((ide_pci_devid_t){PCI_VENDOR_ID_SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_CSB5IDE})
 #define DEVID_ITE8172G	((ide_pci_devid_t){PCI_VENDOR_ID_ITE,     PCI_DEVICE_ID_ITE_IT8172G})
+#define DEVID_TC86C001	((ide_pci_devid_t){PCI_VENDOR_ID_TOSHIBA_2, PCI_DEVICE_ID_TOSHIBA_TC86C001_IDE})
 
 #define	IDE_IGNORE	((void *)-1)
 
@@ -271,6 +277,18 @@ extern void ide_init_it8172(ide_hwif_t *);
 #define INIT_IT8172	NULL
 #endif
 
+#ifdef CONFIG_BLK_DEV_IT8172
+extern unsigned int pci_init_it8172(struct pci_dev *, const char *);
+extern unsigned int ata66_it8172(ide_hwif_t *);
+extern void ide_init_it8172(ide_hwif_t *);
+#define PCI_IT8172	&pci_init_it8172
+#define INIT_IT8172	&ide_init_it8172
+#else
+#define PCI_IT8172	NULL
+#define ATA66_IT8172	NULL
+#define INIT_IT8172	NULL
+#endif
+
 #ifdef CONFIG_BLK_DEV_RZ1000
 extern void ide_init_rz1000(ide_hwif_t *);
 #define INIT_RZ1000	&ide_init_rz1000
@@ -355,6 +373,19 @@ extern void ide_dmacapable_via82cxxx(ide_hwif_t *, unsigned long);
 #define DMA_VIA82CXXX	NULL
 #endif
 
+#ifdef CONFIG_BLK_DEV_TC86C001
+extern unsigned int pci_init_tc86c001(struct pci_dev *, const char *);
+extern unsigned int ata66_tc86c001(ide_hwif_t *);
+extern void ide_init_tc86c001(ide_hwif_t *);
+#define PCI_TC86C001	&pci_init_tc86c001
+#define ATA66_TC86C001	&ata66_tc86c001
+#define INIT_TC86C001	&ide_init_tc86c001
+#else
+#define PCI_TC86C001	NULL
+#define ATA66_TC86C001	NULL
+#define INIT_TC86C001	NULL
+#endif
+
 typedef struct ide_pci_enablebit_s {
 	byte	reg;	/* byte pci reg holding the enable-bit */
 	byte	mask;	/* mask to isolate the enable-bit */
@@ -406,6 +437,8 @@ static ide_pci_device_t ide_pci_chipsets[] __initdata = {
 	   prevent Linux detecting it and using our own raid code. We want to detect
 	   it for the ataraid drivers, so we have to list both here.. */
 	{DEVID_PDC20268R,"PDC20268",	PCI_PDC202XX,	ATA66_PDC202XX,	INIT_PDC202XX,	NULL,		{{0x00,0x00,0x00}, {0x00,0x00,0x00}},	OFF_BOARD,	16 },
+	{DEVID_PDC20269,"PDC20269",	PCI_PDC202XX,	ATA66_PDC202XX,	 INIT_PDC202XX,	NULL,		{{0x00,0x00,0x00}, {0x00,0x00,0x00}},	OFF_BOARD,	16 },
+	{DEVID_PDC20275,"PDC20275",	PCI_PDC202XX,	ATA66_PDC202XX,	INIT_PDC202XX,	NULL,		{{0x00,0x00,0x00}, {0x00,0x00,0x00}},	OFF_BOARD,	16 },
 	{DEVID_RZ1000,	"RZ1000",	NULL,		NULL,		INIT_RZ1000,	NULL,		{{0x00,0x00,0x00}, {0x00,0x00,0x00}}, 	ON_BOARD,	0 },
 	{DEVID_RZ1001,	"RZ1001",	NULL,		NULL,		INIT_RZ1000,	NULL,		{{0x00,0x00,0x00}, {0x00,0x00,0x00}}, 	ON_BOARD,	0 },
 	{DEVID_SAMURAI,	"SAMURAI",	NULL,		NULL,		INIT_SAMURAI,	NULL,		{{0x00,0x00,0x00}, {0x00,0x00,0x00}},	ON_BOARD,	0 },
@@ -416,6 +449,7 @@ static ide_pci_device_t ide_pci_chipsets[] __initdata = {
 	{DEVID_CMD646,	"CMD646",	PCI_CMD64X,	NULL,		INIT_CMD64X,	NULL,		{{0x00,0x00,0x00}, {0x51,0x80,0x80}}, 	ON_BOARD,	0 },
 	{DEVID_CMD648,	"CMD648",	PCI_CMD64X,	ATA66_CMD64X,	INIT_CMD64X,	NULL,		{{0x00,0x00,0x00}, {0x00,0x00,0x00}},	ON_BOARD,	0 },
 	{DEVID_CMD649,	"CMD649",	PCI_CMD64X,	ATA66_CMD64X,	INIT_CMD64X,	NULL,		{{0x00,0x00,0x00}, {0x00,0x00,0x00}},	ON_BOARD,	0 },
+	{DEVID_CMD680,	"CMD680",	PCI_CMD64X,	ATA66_CMD64X,	INIT_CMD64X,	NULL,		{{0x00,0x00,0x00}, {0x00,0x00,0x00}},	ON_BOARD,	0 },
 	{DEVID_HT6565,	"HT6565",	NULL,		NULL,		NULL,		NULL,		{{0x00,0x00,0x00}, {0x00,0x00,0x00}}, 	ON_BOARD,	0 },
 	{DEVID_OPTI621,	"OPTI621",	NULL,		NULL,		INIT_OPTI621,	NULL,		{{0x45,0x80,0x00}, {0x40,0x08,0x00}}, 	ON_BOARD,	0 },
 	{DEVID_OPTI621X,"OPTI621X",	NULL,		NULL,		INIT_OPTI621,	NULL,		{{0x45,0x80,0x00}, {0x40,0x08,0x00}}, 	ON_BOARD,	0 },
@@ -424,6 +458,8 @@ static ide_pci_device_t ide_pci_chipsets[] __initdata = {
 	{DEVID_AEC6210,	"AEC6210",	PCI_AEC62XX,	NULL,		INIT_AEC62XX,	DMA_AEC62XX,	{{0x4a,0x02,0x02}, {0x4a,0x04,0x04}}, 	OFF_BOARD,	0 },
 	{DEVID_AEC6260,	"AEC6260",	PCI_AEC62XX,	ATA66_AEC62XX,	INIT_AEC62XX,	NULL,		{{0x00,0x00,0x00}, {0x00,0x00,0x00}},	NEVER_BOARD,	0 },
 	{DEVID_AEC6260R,"AEC6260R",	PCI_AEC62XX,	ATA66_AEC62XX,	INIT_AEC62XX,	NULL,		{{0x4a,0x02,0x02}, {0x4a,0x04,0x04}},	OFF_BOARD,	0 },
+	{DEVID_AEC6280,	"AEC6280",	PCI_AEC62XX,	ATA66_AEC62XX,	INIT_AEC62XX,	NULL,		{{0x00,0x00,0x00}, {0x00,0x00,0x00}},	OFF_BOARD,	0 },
+	{DEVID_AEC6280R,"AEC6280R",	PCI_AEC62XX,	ATA66_AEC62XX,	INIT_AEC62XX,	NULL,		{{0x00,0x00,0x00}, {0x00,0x00,0x00}},	OFF_BOARD,	0 },
 	{DEVID_W82C105,	"W82C105",	PCI_W82C105,	NULL,		INIT_W82C105,	DMA_W82C105,	{{0x40,0x01,0x01}, {0x40,0x10,0x10}}, 	ON_BOARD,	0 },
 	{DEVID_UM8673F,	"UM8673F",	NULL,		NULL,		NULL,		NULL,		{{0x00,0x00,0x00}, {0x00,0x00,0x00}},	ON_BOARD,	0 },
 	{DEVID_UM8886A,	"UM8886A",	NULL,		NULL,		NULL,		NULL,		{{0x00,0x00,0x00}, {0x00,0x00,0x00}},	ON_BOARD,	0 },
@@ -442,6 +478,7 @@ static ide_pci_device_t ide_pci_chipsets[] __initdata = {
         {DEVID_OSB4,    "ServerWorks OSB4",		PCI_SVWKS,	ATA66_SVWKS,	INIT_SVWKS,	NULL,		{{0x00,0x00,0x00}, {0x00,0x00,0x00}},	ON_BOARD,	0 },
 	{DEVID_CSB5,	"ServerWorks CSB5",		PCI_SVWKS,	ATA66_SVWKS,	INIT_SVWKS,	NULL,		{{0x00,0x00,0x00}, {0x00,0x00,0x00}},	ON_BOARD,	0 },
 	{DEVID_ITE8172G,"IT8172G",	PCI_IT8172,	NULL,	INIT_IT8172,	NULL,		{{0x00,0x00,0x00}, {0x40,0x00,0x01}},	ON_BOARD,	0 },
+	{DEVID_TC86C001,"TC86C001",	PCI_TC86C001,	ATA66_TC86C001,	INIT_TC86C001,	NULL,		{{0x00,0x00,0x00}, {0x0a,0x00,0xff}},	ON_BOARD,	0 },
 	{IDE_PCI_DEVID_NULL, "PCI_IDE",	NULL,		NULL,		NULL,		NULL,		{{0x00,0x00,0x00}, {0x00,0x00,0x00}}, 	ON_BOARD,	0 }};
 
 /*
@@ -458,9 +495,14 @@ static unsigned int __init ide_special_settings (struct pci_dev *dev, const char
 		case PCI_DEVICE_ID_PROMISE_20265:
 		case PCI_DEVICE_ID_PROMISE_20267:
 		case PCI_DEVICE_ID_PROMISE_20268:
+		case PCI_DEVICE_ID_PROMISE_20268R:
+		case PCI_DEVICE_ID_PROMISE_20269:
+		case PCI_DEVICE_ID_PROMISE_20275:
 		case PCI_DEVICE_ID_ARTOP_ATP850UF:
 		case PCI_DEVICE_ID_ARTOP_ATP860:
 		case PCI_DEVICE_ID_ARTOP_ATP860R:
+		case PCI_DEVICE_ID_ARTOP_ATP865:
+		case PCI_DEVICE_ID_ARTOP_ATP865R:
 			return dev->irq;
 		default:
 			break;
@@ -592,7 +634,10 @@ static void __init ide_setup_pci_device (struct pci_dev *dev, ide_pci_device_t *
 		autodma = 1;
 #endif
 
-	pci_enable_device(dev);
+	if (pci_enable_device(dev)) {
+		printk("%s: error while enabling PCI device\n", d->name);
+		return;
+	}
 
 check_if_enabled:
 	if (pci_read_config_word(dev, PCI_COMMAND, &pcicmd)) {
@@ -752,7 +797,9 @@ controller_ok:
 		}
 		if (IDE_PCI_DEVID_EQ(d->devid, DEVID_MPIIX))
 			goto bypass_piix_dma;
-
+		if (IDE_PCI_DEVID_EQ(d->devid, DEVID_PDCADMA) ||
+		    IDE_PCI_DEVID_EQ(d->devid, DEVID_CMD680))
+			goto bypass_legacy_dma;
 		if (hwif->udma_four) {
 			printk("%s: ATA-66/100 forced bit set (WARNING)!!\n", d->name);
 		} else {
@@ -775,9 +822,13 @@ controller_ok:
 		    IDE_PCI_DEVID_EQ(d->devid, DEVID_PDC20267) ||
 		    IDE_PCI_DEVID_EQ(d->devid, DEVID_PDC20268) ||
 		    IDE_PCI_DEVID_EQ(d->devid, DEVID_PDC20268R) ||
+		    IDE_PCI_DEVID_EQ(d->devid, DEVID_PDC20269) ||
+		    IDE_PCI_DEVID_EQ(d->devid, DEVID_PDC20275) ||
 		    IDE_PCI_DEVID_EQ(d->devid, DEVID_AEC6210) ||
 		    IDE_PCI_DEVID_EQ(d->devid, DEVID_AEC6260) ||
 		    IDE_PCI_DEVID_EQ(d->devid, DEVID_AEC6260R) ||
+		    IDE_PCI_DEVID_EQ(d->devid, DEVID_AEC6280) ||
+		    IDE_PCI_DEVID_EQ(d->devid, DEVID_AEC6280R) ||
 		    IDE_PCI_DEVID_EQ(d->devid, DEVID_HPT34X) ||
 		    IDE_PCI_DEVID_EQ(d->devid, DEVID_HPT366) ||
 		    IDE_PCI_DEVID_EQ(d->devid, DEVID_CS5530) ||
@@ -811,6 +862,7 @@ controller_ok:
 			}
 		}
 #endif	/* CONFIG_BLK_DEV_IDEDMA */
+bypass_legacy_dma:
 bypass_piix_dma:
 bypass_umc_dma:
 		if (d->init_hwif)  /* Call chipset-specific routine for each enabled hwif */

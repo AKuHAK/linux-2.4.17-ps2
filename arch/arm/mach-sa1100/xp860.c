@@ -21,6 +21,7 @@
 
 static void xp860_power_off(void)
 {
+	cli();
 	GPDR |= GPIO_GPIO20;
 	GPSR = GPIO_GPIO20;
 	mdelay(1000);

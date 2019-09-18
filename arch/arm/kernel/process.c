@@ -24,6 +24,8 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 
+#include <linux/trace.h>
+
 #include <asm/system.h>
 #include <asm/io.h>
 #include <asm/leds.h>
@@ -86,7 +88,7 @@ void cpu_idle(void)
 	init_idle();
 	current->nice = 20;
 	current->counter = -100;
-
+	preempt_disable();
 	while (1) {
 		void (*idle)(void) = pm_idle;
 		if (!idle)
@@ -323,12 +325,17 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long esp,
 /*
  * fill in the fpe structure for a core dump...
  */
+int dump_task_fpu (struct pt_regs *regs, struct task_struct *tsk, struct user_fp *fp)
+{
+	if (tsk->used_math)
+		memcpy(fp, &tsk->thread.fpstate.soft, sizeof (*fp));
+
+	return tsk->used_math;
+}
+
 int dump_fpu (struct pt_regs *regs, struct user_fp *fp)
 {
-	if (current->used_math)
-		memcpy(fp, &current->thread.fpstate.soft, sizeof (*fp));
-
-	return current->used_math;
+	return dump_task_fpu(regs, current, fp);
 }
 
 /*
@@ -386,6 +393,11 @@ pid_t kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
         : "=r" (__ret)
         : "Ir" (flags), "I" (CLONE_VM), "r" (fn), "r" (arg)
 	: "r0", "r1", "lr");
+#if (CONFIG_TRACE || CONFIG_TRACE_MODULE)
+	if (__ret > 0)
+		TRACE_PROCESS(TRACE_EV_PROCESS_KTHREAD, __ret, (int) fn);
+#endif
+	
 	return __ret;
 }
 

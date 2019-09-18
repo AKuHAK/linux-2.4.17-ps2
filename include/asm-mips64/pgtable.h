@@ -268,32 +268,32 @@ extern pmd_t empty_bad_pmd_table[2*PAGE_SIZE/sizeof(pmd_t)];
  * Conversion functions: convert a page and protection to a page entry,
  * and a page entry and page directory to the page they refer to.
  */
-extern inline unsigned long pmd_page(pmd_t pmd)
+static inline unsigned long pmd_page(pmd_t pmd)
 {
 	return pmd_val(pmd);
 }
 
-extern inline unsigned long pgd_page(pgd_t pgd)
+static inline unsigned long pgd_page(pgd_t pgd)
 {
 	return pgd_val(pgd);
 }
 
-extern inline void pmd_set(pmd_t * pmdp, pte_t * ptep)
+static inline void pmd_set(pmd_t * pmdp, pte_t * ptep)
 {
 	pmd_val(*pmdp) = (((unsigned long) ptep) & PAGE_MASK);
 }
 
-extern inline void pgd_set(pgd_t * pgdp, pmd_t * pmdp)
+static inline void pgd_set(pgd_t * pgdp, pmd_t * pmdp)
 {
 	pgd_val(*pgdp) = (((unsigned long) pmdp) & PAGE_MASK);
 }
 
-extern inline int pte_none(pte_t pte)
+static inline int pte_none(pte_t pte)
 {
 	return !pte_val(pte);
 }
 
-extern inline int pte_present(pte_t pte)
+static inline int pte_present(pte_t pte)
 {
 	return pte_val(pte) & _PAGE_PRESENT;
 }
@@ -303,12 +303,12 @@ extern inline int pte_present(pte_t pte)
  * within a page table are directly modified.  Thus, the following
  * hook is made available.
  */
-extern inline void set_pte(pte_t *ptep, pte_t pteval)
+static inline void set_pte(pte_t *ptep, pte_t pteval)
 {
 	*ptep = pteval;
 }
 
-extern inline void pte_clear(pte_t *ptep)
+static inline void pte_clear(pte_t *ptep)
 {
 	set_pte(ptep, __pte(0));
 }
@@ -323,22 +323,22 @@ extern inline void pte_clear(pte_t *ptep)
 /*
  * Empty pmd entries point to the invalid_pte_table.
  */
-extern inline int pmd_none(pmd_t pmd)
+static inline int pmd_none(pmd_t pmd)
 {
 	return pmd_val(pmd) == (unsigned long) invalid_pte_table;
 }
 
-extern inline int pmd_bad(pmd_t pmd)
+static inline int pmd_bad(pmd_t pmd)
 {
 	return pmd_val(pmd) &~ PAGE_MASK;
 }
 
-extern inline int pmd_present(pmd_t pmd)
+static inline int pmd_present(pmd_t pmd)
 {
 	return pmd_val(pmd) != (unsigned long) invalid_pte_table;
 }
 
-extern inline void pmd_clear(pmd_t *pmdp)
+static inline void pmd_clear(pmd_t *pmdp)
 {
 	pmd_val(*pmdp) = ((unsigned long) invalid_pte_table);
 }
@@ -346,22 +346,22 @@ extern inline void pmd_clear(pmd_t *pmdp)
 /*
  * Empty pgd entries point to the invalid_pmd_table.
  */
-extern inline int pgd_none(pgd_t pgd)
+static inline int pgd_none(pgd_t pgd)
 {
 	return pgd_val(pgd) == (unsigned long) invalid_pmd_table;
 }
 
-extern inline int pgd_bad(pgd_t pgd)
+static inline int pgd_bad(pgd_t pgd)
 {
 	return pgd_val(pgd) &~ PAGE_MASK;
 }
 
-extern inline int pgd_present(pgd_t pgd)
+static inline int pgd_present(pgd_t pgd)
 {
 	return pgd_val(pgd) != (unsigned long) invalid_pmd_table;
 }
 
-extern inline void pgd_clear(pgd_t *pgdp)
+static inline void pgd_clear(pgd_t *pgdp)
 {
 	pgd_val(*pgdp) = ((unsigned long) invalid_pmd_table);
 }
@@ -384,51 +384,51 @@ extern inline void pgd_clear(pgd_t *pgdp)
  * The following only work if pte_present() is true.
  * Undefined behaviour if not..
  */
-extern inline int pte_read(pte_t pte)
+static inline int pte_read(pte_t pte)
 {
 	return pte_val(pte) & _PAGE_READ;
 }
 
-extern inline int pte_write(pte_t pte)
+static inline int pte_write(pte_t pte)
 {
 	return pte_val(pte) & _PAGE_WRITE;
 }
 
-extern inline int pte_dirty(pte_t pte)
+static inline int pte_dirty(pte_t pte)
 {
 	return pte_val(pte) & _PAGE_MODIFIED;
 }
 
-extern inline int pte_young(pte_t pte)
+static inline int pte_young(pte_t pte)
 {
 	return pte_val(pte) & _PAGE_ACCESSED;
 }
 
-extern inline pte_t pte_wrprotect(pte_t pte)
+static inline pte_t pte_wrprotect(pte_t pte)
 {
 	pte_val(pte) &= ~(_PAGE_WRITE | _PAGE_SILENT_WRITE);
 	return pte;
 }
 
-extern inline pte_t pte_rdprotect(pte_t pte)
+static inline pte_t pte_rdprotect(pte_t pte)
 {
 	pte_val(pte) &= ~(_PAGE_READ | _PAGE_SILENT_READ);
 	return pte;
 }
 
-extern inline pte_t pte_mkclean(pte_t pte)
+static inline pte_t pte_mkclean(pte_t pte)
 {
 	pte_val(pte) &= ~(_PAGE_MODIFIED|_PAGE_SILENT_WRITE);
 	return pte;
 }
 
-extern inline pte_t pte_mkold(pte_t pte)
+static inline pte_t pte_mkold(pte_t pte)
 {
 	pte_val(pte) &= ~(_PAGE_ACCESSED|_PAGE_SILENT_READ);
 	return pte;
 }
 
-extern inline pte_t pte_mkwrite(pte_t pte)
+static inline pte_t pte_mkwrite(pte_t pte)
 {
 	pte_val(pte) |= _PAGE_WRITE;
 	if (pte_val(pte) & _PAGE_MODIFIED)
@@ -436,7 +436,7 @@ extern inline pte_t pte_mkwrite(pte_t pte)
 	return pte;
 }
 
-extern inline pte_t pte_mkread(pte_t pte)
+static inline pte_t pte_mkread(pte_t pte)
 {
 	pte_val(pte) |= _PAGE_READ;
 	if (pte_val(pte) & _PAGE_ACCESSED)
@@ -444,7 +444,7 @@ extern inline pte_t pte_mkread(pte_t pte)
 	return pte;
 }
 
-extern inline pte_t pte_mkdirty(pte_t pte)
+static inline pte_t pte_mkdirty(pte_t pte)
 {
 	pte_val(pte) |= _PAGE_MODIFIED;
 	if (pte_val(pte) & _PAGE_WRITE)
@@ -452,7 +452,7 @@ extern inline pte_t pte_mkdirty(pte_t pte)
 	return pte;
 }
 
-extern inline pte_t pte_mkyoung(pte_t pte)
+static inline pte_t pte_mkyoung(pte_t pte)
 {
 	pte_val(pte) |= _PAGE_ACCESSED;
 	if (pte_val(pte) & _PAGE_READ)
@@ -498,12 +498,12 @@ static inline pgprot_t pgprot_noncached(pgprot_t _prot)
 	__pte;								\
 })
 
-extern inline pte_t mk_pte_phys(unsigned long physpage, pgprot_t pgprot)
+static inline pte_t mk_pte_phys(unsigned long physpage, pgprot_t pgprot)
 {
 	return __pte(physpage | pgprot_val(pgprot));
 }
 
-extern inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
+static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
 	return __pte((pte_val(pte) & _PAGE_CHG_MASK) | pgprot_val(newprot));
 }
@@ -516,20 +516,20 @@ extern inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 #define pgd_index(address)	((address >> PGDIR_SHIFT) & (PTRS_PER_PGD - 1))
 
 /* to find an entry in a page-table-directory */
-extern inline pgd_t *pgd_offset(struct mm_struct *mm, unsigned long address)
+static inline pgd_t *pgd_offset(struct mm_struct *mm, unsigned long address)
 {
 	return mm->pgd + pgd_index(address);
 }
 
 /* Find an entry in the second-level page table.. */
-extern inline pmd_t * pmd_offset(pgd_t * dir, unsigned long address)
+static inline pmd_t * pmd_offset(pgd_t * dir, unsigned long address)
 {
 	return (pmd_t *) pgd_page(*dir) +
 	       ((address >> PMD_SHIFT) & (PTRS_PER_PMD - 1));
 }
 
 /* Find an entry in the third-level page table.. */ 
-extern inline pte_t *pte_offset(pmd_t * dir, unsigned long address)
+static inline pte_t *pte_offset(pmd_t * dir, unsigned long address)
 {
 	return (pte_t *) (pmd_page(*dir)) +
 	       ((address >> PAGE_SHIFT) & (PTRS_PER_PTE - 1));
@@ -551,7 +551,7 @@ extern void (*update_mmu_cache)(struct vm_area_struct *vma,
  * Non-present pages:  high 24 bits are offset, next 8 bits type,
  * low 32 bits zero.
  */
-extern inline pte_t mk_swap_pte(unsigned long type, unsigned long offset)
+static inline pte_t mk_swap_pte(unsigned long type, unsigned long offset)
 { pte_t pte; pte_val(pte) = (type << 32) | (offset << 40); return pte; }
 
 #define SWP_TYPE(x)		(((x).val >> 32) & 0xff)
@@ -566,259 +566,13 @@ extern inline pte_t mk_swap_pte(unsigned long type, unsigned long offset)
 #define kern_addr_valid(addr)	(1)
 #endif
 
-/* TLB operations. */
-extern inline void tlb_probe(void)
-{
-	__asm__ __volatile__(
-		".set noreorder\n\t"
-		"tlbp\n\t"
-		".set reorder");
-}
-
-extern inline void tlb_read(void)
-{
-	__asm__ __volatile__(
-		".set noreorder\n\t"
-		"tlbr\n\t"
-		".set reorder");
-}
-
-extern inline void tlb_write_indexed(void)
-{
-	__asm__ __volatile__(
-		".set noreorder\n\t"
-		"tlbwi\n\t"
-		".set reorder");
-}
-
-extern inline void tlb_write_random(void)
-{
-	__asm__ __volatile__(
-		".set noreorder\n\t"
-		"tlbwr\n\t"
-		".set reorder");
-}
-
-/* Dealing with various CP0 mmu/cache related registers. */
-
-/* CP0_PAGEMASK register */
-extern inline unsigned long get_pagemask(void)
-{
-	unsigned long val;
-
-	__asm__ __volatile__(
-		".set noreorder\n\t"
-		"mfc0 %0, $5\n\t"
-		".set reorder"
-		: "=r" (val));
-	return val;
-}
-
-extern inline void set_pagemask(unsigned long val)
-{
-	__asm__ __volatile__(
-		".set noreorder\n\t"
-		"mtc0 %z0, $5\n\t"
-		".set reorder"
-		: : "Jr" (val));
-}
-
-/* CP0_ENTRYLO0 and CP0_ENTRYLO1 registers */
-extern inline unsigned long get_entrylo0(void)
-{
-	unsigned long val;
-
-	__asm__ __volatile__(	
-		".set noreorder\n\t"
-		"dmfc0 %0, $2\n\t"
-		".set reorder"
-		: "=r" (val));
-	return val;
-}
-
-extern inline void set_entrylo0(unsigned long val)
-{
-	__asm__ __volatile__(
-		".set noreorder\n\t"
-		"dmtc0 %z0, $2\n\t"
-		".set reorder"
-		: : "Jr" (val));
-}
-
-extern inline unsigned long get_entrylo1(void)
-{
-	unsigned long val;
-
-	__asm__ __volatile__(
-		".set noreorder\n\t"
-		"dmfc0 %0, $3\n\t"
-		".set reorder" : "=r" (val));
-
-	return val;
-}
-
-extern inline void set_entrylo1(unsigned long val)
-{
-	__asm__ __volatile__(
-		".set noreorder\n\t"
-		"dmtc0 %z0, $3\n\t"
-		".set reorder"
-		: : "Jr" (val));
-}
-
-/* CP0_ENTRYHI register */
-extern inline unsigned long get_entryhi(void)
-{
-	unsigned long val;
-
-	__asm__ __volatile__(
-		".set noreorder\n\t"
-		"dmfc0 %0, $10\n\t"
-		".set reorder"
-		: "=r" (val));
-
-	return val;
-}
-
-extern inline void set_entryhi(unsigned long val)
-{
-	__asm__ __volatile__(
-		".set noreorder\n\t"
-		"dmtc0 %z0, $10\n\t"
-		".set reorder"
-		: : "Jr" (val));
-}
-
-/* CP0_INDEX register */
-extern inline unsigned int get_index(void)
-{
-	unsigned long val;
-
-	__asm__ __volatile__(
-		".set noreorder\n\t"
-		"mfc0 %0, $0\n\t"
-		".set reorder"
-		: "=r" (val));
-	return val;
-}
-
-extern inline void set_index(unsigned int val)
-{
-	__asm__ __volatile__(
-		".set noreorder\n\t"
-		"mtc0 %z0, $0\n\t"
-		".set reorder\n\t"
-		: : "Jr" (val));
-}
-
-/* CP0_WIRED register */
-extern inline unsigned long get_wired(void)
-{
-	unsigned long val;
-
-	__asm__ __volatile__(
-		".set noreorder\n\t"
-		"mfc0 %0, $6\n\t"
-		".set reorder\n\t"
-		: "=r" (val));
-	return val;
-}
-
-extern inline void set_wired(unsigned long val)
-{
-	__asm__ __volatile__(
-		"\n\t.set noreorder\n\t"
-		"mtc0 %z0, $6\n\t"
-		".set reorder"
-		: : "Jr" (val));
-}
-
-extern inline unsigned long get_info(void)
-{
-	unsigned long val;
-
-	__asm__(
-		".set push\n\t"
-		".set reorder\n\t"
-		"mfc0 %0, $7\n\t"
-		".set pop"
-		: "=r" (val));
-	return val;
-}
-
-/* CP0_TAGLO and CP0_TAGHI registers */
-extern inline unsigned long get_taglo(void)
-{
-	unsigned long val;
-
-	__asm__ __volatile__(
-		".set noreorder\n\t"
-		"mfc0 %0, $28\n\t"
-		".set reorder"
-		: "=r" (val));
-	return val;
-}
-
-extern inline void set_taglo(unsigned long val)
-{
-	__asm__ __volatile__(
-		".set noreorder\n\t"
-		"mtc0 %z0, $28\n\t"
-		".set reorder"
-		: : "Jr" (val));
-}
-
-extern inline unsigned long get_taghi(void)
-{
-	unsigned long val;
-
-	__asm__ __volatile__(
-		".set noreorder\n\t"
-		"mfc0 %0, $29\n\t"
-		".set reorder"
-		: "=r" (val));
-	return val;
-}
-
-extern inline void set_taghi(unsigned long val)
-{
-	__asm__ __volatile__(
-		".set noreorder\n\t"
-		"mtc0 %z0, $29\n\t"
-		".set reorder"
-		: : "Jr" (val));
-}
-
-/* CP0_CONTEXT register */
-extern inline unsigned long get_context(void)
-{
-	unsigned long val;
-
-	__asm__ __volatile__(
-		".set noreorder\n\t"
-		"dmfc0 %0, $4\n\t"
-		".set reorder"
-		: "=r" (val));
-
-	return val;
-}
-
-extern inline void set_context(unsigned long val)
-{
-	__asm__ __volatile__(
-		".set noreorder\n\t"
-		"dmtc0 %z0, $4\n\t"
-		".set reorder"
-		: : "Jr" (val));
-}
-
-#include <asm-generic/pgtable.h>
-
-#endif /* !defined (_LANGUAGE_ASSEMBLY) */
-
 /*
  * No page table caches to initialise
  */
 #define pgtable_cache_init()	do { } while (0)
+
+#include <asm-generic/pgtable.h>
+
+#endif /* !defined (_LANGUAGE_ASSEMBLY) */
 
 #endif /* _ASM_PGTABLE_H */

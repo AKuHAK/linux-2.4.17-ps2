@@ -43,6 +43,12 @@ static void __init pangolin_map_io(void)
 	sa1100_register_uart(0, 1);
 	sa1100_register_uart(1, 3);
 	Ser1SDCR0 |= SDCR0_UART;
+
+	/* set some GPDR bits while it's safe */
+	GPDR |= GPIO_PCMCIA_RESET;
+#ifndef CONFIG_SA1100_PANGOLIN_PCMCIA_IDE
+	GPDR |= GPIO_PCMCIA_BUS_ON;
+#endif
 }
 
 MACHINE_START(PANGOLIN, "Dialogue-Pangolin")

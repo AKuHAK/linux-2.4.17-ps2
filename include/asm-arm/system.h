@@ -62,6 +62,13 @@ extern struct task_struct *__switch_to(struct task_struct *prev, struct task_str
 #define local_irq_disable()	__cli()
 #define local_irq_enable()	__sti()
 
+#define irqs_disabled()				\
+({						\
+        unsigned long cpsr_val;			\
+        asm ("mrs %0, cpsr" : "=r" (cpsr_val));	\
+        cpsr_val & 128;				\
+})
+
 #ifdef CONFIG_SMP
 #error SMP not supported
 

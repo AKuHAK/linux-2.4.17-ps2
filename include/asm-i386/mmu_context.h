@@ -27,6 +27,10 @@ static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk,
 
 static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next, struct task_struct *tsk, unsigned cpu)
 {
+#ifdef CONFIG_PREEMPT
+	if (preempt_is_disabled() == 0)
+		BUG();
+#endif
 	if (prev != next) {
 		/* stop flush ipis for the previous mm */
 		clear_bit(cpu, &prev->cpu_vm_mask);

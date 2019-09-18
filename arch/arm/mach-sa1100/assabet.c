@@ -32,15 +32,59 @@
 #include "generic.h"
 
 
-unsigned long BCR_value = ASSABET_BCR_DB1110;
 unsigned long SCR_value = ASSABET_SCR_INIT;
-EXPORT_SYMBOL(BCR_value);
+unsigned long BCR_value = ASSABET_BCR_DB1110;
 EXPORT_SYMBOL(SCR_value);
+EXPORT_SYMBOL(BCR_value);
 
+void ASSABET_BCR_set(int bit)
+{
+	unsigned long flags;
+	local_irq_save(flags);
+	ASSABET_BCR = (BCR_value |= bit);
+	local_irq_restore(flags);
+}
+
+void ASSABET_BCR_clear(int bit)
+{
+	unsigned long flags;
+	local_irq_save(flags);
+	ASSABET_BCR = (BCR_value &= ~bit);
+	local_irq_restore(flags);
+}
+
+EXPORT_SYMBOL(ASSABET_BCR_set);
+EXPORT_SYMBOL(ASSABET_BCR_clear);
+
+static void assabet_backlight_power(int on)
+{
+#ifndef ASSABET_PAL_VIDEO
+	if (on)
+		ASSABET_BCR_set(ASSABET_BCR_LIGHT_ON);
+	else
+#endif
+		ASSABET_BCR_clear(ASSABET_BCR_LIGHT_ON);
+}
+
+static void assabet_lcd_power(int on)
+{
+#ifndef ASSABET_PAL_VIDEO
+	if (on)
+		ASSABET_BCR_set(ASSABET_BCR_LCD_ON);
+	else
+#endif
+		ASSABET_BCR_clear(ASSABET_BCR_LCD_ON);
+}
 
 static int __init assabet_init(void)
 {
-	if (machine_is_assabet() && machine_has_neponset()) {
+	if (!machine_is_assabet())
+		return -EINVAL;
+
+	sa1100fb_lcd_power = assabet_lcd_power;
+	sa1100fb_backlight_power = assabet_backlight_power;
+
+	if (machine_has_neponset()) {
 		/*
 		 * Angel sets this, but other bootloaders may not.
 		 *
@@ -55,6 +99,7 @@ static int __init assabet_init(void)
 			"hasn't been configured in the kernel\n" );
 #endif
 	}
+
 	return 0;
 }
 
@@ -186,19 +231,18 @@ static void assabet_uart_pm(struct uart_port *port, u_int state, u_int oldstate)
 {
 	if (port->mapbase == _Ser1UTCR0) {
 		if (state)
-			ASSABET_BCR_clear(ASSABET_BCR_RS232EN);
+			ASSABET_BCR_clear(ASSABET_BCR_RS232EN |
+					  ASSABET_BCR_COM_RTS |
+					  ASSABET_BCR_COM_DTR);
 		else
-			ASSABET_BCR_set(ASSABET_BCR_RS232EN);
+			ASSABET_BCR_set(ASSABET_BCR_RS232EN |
+					ASSABET_BCR_COM_RTS |
+					ASSABET_BCR_COM_DTR);
 	}
 }
 
 /*
- * Note! this can be called from IRQ context.
- * FIXME: You _need_ to handle ASSABET_BCR carefully, which doesn't
- * happen at the moment.  Suggest putting interrupt save/restore
- * in ASSABET_BCR_set/clear.
- *
- * NB: Assabet uses COM_RTS and COM_DTR for both UART1 (com port)
+ * Assabet uses COM_RTS and COM_DTR for both UART1 (com port)
  * and UART3 (radio module).  We only handle them for UART1 here.
  */
 static void assabet_set_mctrl(struct uart_port *port, u_int mctrl)
@@ -207,21 +251,21 @@ static void assabet_set_mctrl(struct uart_port *port, u_int mctrl)
 		u_int set = 0, clear = 0;
 
 		if (mctrl & TIOCM_RTS)
-			set |= ASSABET_BCR_COM_RTS;
-		else
 			clear |= ASSABET_BCR_COM_RTS;
+		else
+			set |= ASSABET_BCR_COM_RTS;
 
 		if (mctrl & TIOCM_DTR)
-			set |= ASSABET_BCR_COM_DTR;
-		else
 			clear |= ASSABET_BCR_COM_DTR;
+		else
+			set |= ASSABET_BCR_COM_DTR;
 
 		ASSABET_BCR_clear(clear);
 		ASSABET_BCR_set(set);
 	}
 }
 
-static int assabet_get_mctrl(struct uart_port *port)
+static u_int assabet_get_mctrl(struct uart_port *port)
 {
 	u_int ret = 0;
 	u_int bsr = ASSABET_BSR;
@@ -312,6 +356,7 @@ static void __init assabet_map_io(void)
 	PWER = PWER_GPIO0;
 	PGSR = 0;
 	PCFR = 0;
+	PSDR = 0;
 
 	/*
 	 * Clear all possible wakeup reasons.

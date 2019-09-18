@@ -59,6 +59,12 @@
 #define IS_PDC4030_DRIVE (0)	/* auto-NULLs out pdc4030 code */
 #endif
 
+#ifdef CONFIG_BLK_DEV_TC86C001
+#include <linux/pci_ids.h>
+#define DEVID_TC86C001	((ide_pci_devid_t){PCI_VENDOR_ID_TOSHIBA_2, PCI_DEVICE_ID_TOSHIBA_TC86C001_IDE})
+#define IS_TC86C001 IDE_PCI_DEVID_EQ(HWIF(drive)->pci_devid, DEVID_TC86C001)
+#endif
+
 static void idedisk_bswap_data (void *buffer, int wcount)
 {
 	u16 *p = buffer;
@@ -528,6 +534,16 @@ static unsigned long idedisk_capacity (ide_drive_t  *drive)
 static ide_startstop_t idedisk_special (ide_drive_t *drive)
 {
 	special_t *s = &drive->special;
+
+/* TC86C001 BUG-06 FIX */
+#ifdef CONFIG_BLK_DEV_TC86C001
+	if (IS_TC86C001) {
+		ide_hwif_t *hwif		= HWIF(drive);
+		unsigned long dma_base		= hwif->dma_base;
+
+		outw(0x00, dma_base);
+	}
+#endif
 
 	if (s->b.set_geometry) {
 		s->b.set_geometry = 0;

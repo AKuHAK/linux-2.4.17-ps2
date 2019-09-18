@@ -9,6 +9,7 @@
  * published by the Free Software Foundation.
  */
 #include <linux/config.h>
+#include <linux/compiler.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
@@ -28,6 +29,7 @@
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
 #include <asm/unaligned.h>
+#include <asm/kgdb.h>
 
 extern void die_if_kernel(const char *str, struct pt_regs *regs, int err);
 extern void show_pte(struct mm_struct *mm, unsigned long addr);
@@ -78,26 +80,45 @@ extern void do_bad_area(struct task_struct *tsk, struct mm_struct *mm,
 #define SHIFT_ASR	0x40
 #define SHIFT_RORRRX	0x60
 
+#ifdef __ARMEB__
+#define BE	1
+#else
+#define BE 	0
+#endif
+
 static unsigned long ai_user;
 static unsigned long ai_sys;
 static unsigned long ai_skipped;
 static unsigned long ai_half;
 static unsigned long ai_word;
 static unsigned long ai_multi;
+static int ai_usermode;
 
-#ifdef CONFIG_SYSCTL
-static int proc_alignment_read(char *page, char **start, off_t off,
-			       int count, int *eof, void *data)
+#ifdef CONFIG_PROC_FS
+static const char *usermode_action[] = {
+	"ignored",
+	"warn",
+	"fixup",
+	"fixup+warn",
+	"signal",
+	"signal+warn"
+};
+
+static int
+proc_alignment_read(char *page, char **start, off_t off, int count, int *eof,
+		    void *data)
 {
 	char *p = page;
 	int len;
 
-	p += sprintf(p, "User:\t\t%li\n", ai_user);
-	p += sprintf(p, "System:\t\t%li\n", ai_sys);
-	p += sprintf(p, "Skipped:\t%li\n", ai_skipped);
-	p += sprintf(p, "Half:\t\t%li\n", ai_half);
-	p += sprintf(p, "Word:\t\t%li\n", ai_word);
-	p += sprintf(p, "Multi:\t\t%li\n", ai_multi);
+	p += sprintf(p, "User:\t\t%lu\n", ai_user);
+	p += sprintf(p, "System:\t\t%lu\n", ai_sys);
+	p += sprintf(p, "Skipped:\t%lu\n", ai_skipped);
+	p += sprintf(p, "Half:\t\t%lu\n", ai_half);
+	p += sprintf(p, "Word:\t\t%lu\n", ai_word);
+	p += sprintf(p, "Multi:\t\t%lu\n", ai_multi);
+	p += sprintf(p, "User faults:\t%i (%s)\n", ai_usermode,
+			usermode_action[ai_usermode]);
 
 	len = (p - page) - off;
 	if (len < 0)
@@ -109,19 +130,46 @@ static int proc_alignment_read(char *page, char **start, off_t off,
 	return len;
 }
 
+static int proc_alignment_write(struct file *file, const char *buffer,
+			       unsigned long count, void *data)
+{
+	int mode;
+
+	if (count > 0) {
+		if (get_user(mode, buffer))
+			return -EFAULT;
+		if (mode >= '0' && mode <= '5')
+			   ai_usermode = mode - '0';
+	}
+	return count;
+}
+
 /*
- * This needs to be done after sysctl_init, otherwise sys/
- * will be overwritten.
+ * This needs to be done after sysctl_init, otherwise sys/ will be
+ * overwritten.  Actually, this shouldn't be in sys/ at all since
+ * it isn't a sysctl, and it doesn't contain sysctl information.
+ * We now locate it in /proc/cpu/alignment instead.
  */
 static int __init alignment_init(void)
 {
-	create_proc_read_entry("sys/debug/alignment", 0, NULL,
-				proc_alignment_read, NULL);
+	struct proc_dir_entry *res;
+
+	res = proc_mkdir("cpu", NULL);
+	if (!res)
+		return -ENOMEM;
+
+	res = create_proc_entry("alignment", S_IWUSR | S_IRUGO, res);
+	if (!res)
+		return -ENOMEM;
+
+	res->read_proc = proc_alignment_read;
+	res->write_proc = proc_alignment_write;
+
 	return 0;
 }
 
 __initcall(alignment_init);
-#endif /* CONFIG_SYSCTL */
+#endif /* CONFIG_PROC_FS */
 
 union offset_union {
 	unsigned long un;
@@ -169,12 +217,14 @@ union offset_union {
 	do {							\
 		unsigned int err = 0, v, a = addr;		\
 		get8_unaligned_check(val,a,err);		\
+		val = val << ((BE) ? 8 : 0);			\
 		get8_unaligned_check(v,a,err);			\
-		val |= v << 8;					\
+		val |= v << ((BE) ? 0 : 8);			\
 		if (err)					\
 			goto fault;				\
 	} while (0)
 
+#ifndef __ARMEB__
 #define put16_unaligned_check(val,addr)				\
 	do {							\
 		unsigned int err = 0, v = val, a = addr;	\
@@ -198,7 +248,35 @@ union offset_union {
 		if (err)					\
 			goto fault;				\
 	} while (0)
+#else
+/* on big endian */
+#define put16_unaligned_check(val,addr)			\
+	do {							\
+		unsigned int err = 0, v = val, a = addr;	\
+		__asm__(					\
+		"	mov	%1, %1, ror #8\n"		\
+		"1:	strb	%1, [%2], #1\n"			\
+		"	mov	%1, %1, ror #24\n"		\
+		"2:	strb	%1, [%2]\n"			\
+		"3:\n"						\
+		"	.section .fixup,\"ax\"\n"		\
+		"	.align	2\n"				\
+		"4:	mov	%0, #1\n"			\
+		"	b	3b\n"				\
+		"	.previous\n"				\
+		"	.section __ex_table,\"a\"\n"		\
+		"	.align	3\n"				\
+		"	.long	1b, 4b\n"			\
+		"	.long	2b, 4b\n"			\
+		"	.previous\n"				\
+		: "=r" (err), "=&r" (v), "=&r" (a)		\
+		: "0" (err), "1" (v), "2" (a));			\
+		if (err)					\
+			goto fault;				\
+	} while (0)
+#endif /* __ARMEB__ */
 
+#ifndef __ARMEB__
 #define __put32_unaligned_check(ins,val,addr)			\
 	do {							\
 		unsigned int err = 0, v = val, a = addr;	\
@@ -228,17 +306,51 @@ union offset_union {
 		if (err)					\
 			goto fault;				\
 	} while (0)
+#else
+/* on big endian */
+#define __put32_unaligned_check(ins,val,addr)			\
+	do {							\
+		unsigned int err = 0, v = val, a = addr;	\
+		__asm__(					\
+		"	mov	%1, %1, ror #24\n"		\
+		"1:	"ins"	%1, [%2], #1\n"			\
+		"	mov	%1, %1, ror #24\n"		\
+		"2:	"ins"	%1, [%2], #1\n"			\
+		"	mov	%1, %1, ror #24\n"		\
+		"3:	"ins"	%1, [%2], #1\n"			\
+		"	mov	%1, %1, ror #24\n"		\
+		"4:	"ins"	%1, [%2]\n"			\
+		"5:\n"						\
+		"	.section .fixup,\"ax\"\n"		\
+		"	.align	2\n"				\
+		"6:	mov	%0, #1\n"			\
+		"	b	5b\n"				\
+		"	.previous\n"				\
+		"	.section __ex_table,\"a\"\n"		\
+		"	.align	3\n"				\
+		"	.long	1b, 6b\n"			\
+		"	.long	2b, 6b\n"			\
+		"	.long	3b, 6b\n"			\
+		"	.long	4b, 6b\n"			\
+		"	.previous\n"				\
+		: "=r" (err), "=&r" (v), "=&r" (a)		\
+		: "0" (err), "1" (v), "2" (a));			\
+		if (err)					\
+			goto fault;				\
+	} while (0)
+#endif /* __ARMEB__ */
 
 #define get32_unaligned_check(val,addr)				\
 	do {							\
 		unsigned int err = 0, v, a = addr;		\
 		get8_unaligned_check(val,a,err);		\
+		val = val << ((BE) ? 24 : 0);			\
 		get8_unaligned_check(v,a,err);			\
-		val |= v << 8;					\
+		val |= v << ((BE) ? 16 : 8);			\
 		get8_unaligned_check(v,a,err);			\
-		val |= v << 16;					\
+		val |= v << ((BE) ? 8 : 16);			\
 		get8_unaligned_check(v,a,err);			\
-		val |= v << 24;					\
+		val |= v << ((BE) ? 0 : 24);			\
 		if (err)					\
 			goto fault;				\
 	} while (0)
@@ -250,12 +362,13 @@ union offset_union {
 	do {							\
 		unsigned int err = 0, v, a = addr;		\
 		get8t_unaligned_check(val,a,err);		\
+		val = val << ((BE) ? 24 : 0);			\
 		get8t_unaligned_check(v,a,err);			\
-		val |= v << 8;					\
+		val |= v << ((BE) ? 16 : 8);			\
 		get8t_unaligned_check(v,a,err);			\
-		val |= v << 16;					\
+		val |= v << ((BE) ? 8 : 16);			\
 		get8t_unaligned_check(v,a,err);			\
-		val |= v << 24;					\
+		val |= v << ((BE) ? 0 : 24);			\
 		if (err)					\
 			goto fault;				\
 	} while (0)
@@ -322,16 +435,20 @@ do_alignment_ldrstr(unsigned long addr, unsigned long instr, struct pt_regs *reg
 	if (!LDST_P_BIT(instr) && LDST_W_BIT(instr))
 		goto trans;
 
-	if (LDST_L_BIT(instr))
-		get32_unaligned_check(regs->uregs[rd], addr);
-	else
+	if (LDST_L_BIT(instr)) {
+		unsigned int val;
+		get32_unaligned_check(val, addr);
+		regs->uregs[rd] = val;
+	} else
 		put32_unaligned_check(regs->uregs[rd], addr);
 	return TYPE_LDST;
 
 trans:
-	if (LDST_L_BIT(instr))
-		get32t_unaligned_check(regs->uregs[rd], addr);
-	else
+	if (LDST_L_BIT(instr)) {
+		unsigned int val;
+		get32t_unaligned_check(val, addr);
+		regs->uregs[rd] = val;
+	} else
 		put32t_unaligned_check(regs->uregs[rd], addr);
 	return TYPE_LDST;
 
@@ -381,6 +498,14 @@ do_alignment_ldmstm(unsigned long addr, unsigned long instr, struct pt_regs *reg
 	if (LDST_P_EQ_U(instr))	/* U = P */
 		eaddr += 4;
 
+	/* 
+	 * For alignment faults on the ARM922T the MMU  makes 
+	 * the FSR (and hence addr) equal to the updated base address
+	 * of the multiple access rather than the restored value.
+	 * Switch this messsage off if we've got a ARM922, otherwise
+	 * [ls]dm alignment faults are noisy!
+	 */
+#if !(defined CONFIG_CPU_ARM922T)  
 	/*
 	 * This is a "hint" - we already have eaddr worked out by the
 	 * processor for us.
@@ -391,12 +516,15 @@ do_alignment_ldmstm(unsigned long addr, unsigned long instr, struct pt_regs *reg
 			 instruction_pointer(regs), instr, addr, eaddr);
 		show_regs(regs);
 	}
+#endif
 
 	for (regbits = REGMASK_BITS(instr), rd = 0; regbits; regbits >>= 1, rd += 1)
 		if (regbits & 1) {
-			if (LDST_L_BIT(instr))
-				get32_unaligned_check(regs->uregs[rd], eaddr);
-			else
+			if (LDST_L_BIT(instr)) {
+				unsigned int val;
+				get32_unaligned_check(val, eaddr);
+				regs->uregs[rd] = val;
+			} else
 				put32_unaligned_check(regs->uregs[rd], eaddr);
 			eaddr += 4;
 		}
@@ -424,13 +552,15 @@ do_alignment(unsigned long addr, int error_code, struct pt_regs *regs)
 	int (*handler)(unsigned long addr, unsigned long instr, struct pt_regs *regs);
 	unsigned int type;
 
+	instrptr = instruction_pointer(regs);
+	instr = *(unsigned long *)instrptr;
+
 	if (user_mode(regs))
 		goto user;
 
 	ai_sys += 1;
 
-	instrptr = instruction_pointer(regs);
-	instr = *(unsigned long *)instrptr;
+ fixup:
 
 	regs->ARM_pc += 4;
 
@@ -518,9 +648,22 @@ bad:
 	ai_skipped += 1;
 	return 1;
 
-user:
-	set_cr(cr_no_alignment);
+ user:
 	ai_user += 1;
+
+	if (ai_usermode & 1)
+		printk("Alignment trap: %s (%d) PC=0x%08lx Instr=0x%08lx "
+		       "Address=0x%08lx Code 0x%02x\n", current->comm,
+			current->pid, instrptr, instr, addr, error_code);
+
+	if (ai_usermode & 2)
+		goto fixup;
+
+	if (ai_usermode & 4)
+		force_sig(SIGBUS, current);
+	else
+		set_cr(cr_no_alignment);
+
 	return 0;
 }
 
@@ -588,9 +731,9 @@ do_DataAbort(unsigned long addr, int error_code, struct pt_regs *regs, int fsr)
 {
 	const struct fsr_info *inf = fsr_info + (fsr & 15);
 
-#if defined(CONFIG_CPU_SA110) || defined(CONFIG_CPU_SA1100) || defined(CONFIG_DEBUG_ERRORS)
-	if (addr == regs->ARM_pc)
-		goto sa1_weirdness;
+#ifdef CONFIG_KGDB
+	if(kgdb_active() && kgdb_fault_expected)
+		kgdb_handle_bus_error();
 #endif
 
 	if (!inf->fn)
@@ -603,27 +746,12 @@ bad:
 		inf->name, fsr, addr);
 	show_pte(current->mm, addr);
 	force_sig(inf->sig, current);
-	die_if_kernel("Oops", regs, 0);
-	return;
-
-#if defined(CONFIG_CPU_SA110) || defined(CONFIG_CPU_SA1100) || defined(CONFIG_DEBUG_ERRORS)
-sa1_weirdness:
-	if (user_mode(regs)) {
-		static int first = 1;
-		if (first) {
-			printk(KERN_DEBUG "Fixing up bad data abort at %08lx\n", addr);
-#ifdef CONFIG_DEBUG_ERRORS
-			show_pte(current->mm, addr);
-#endif
-		}
-		first = 0;
-		return;
+#ifdef	CONFIG_KGDB
+	if (!user_mode(regs) && kgdb_active()) {
+		do_kgdb(regs, inf->sig);
 	}
-
-	if (!inf->fn || inf->fn(addr, error_code, regs))
-		goto bad;
-	return;
 #endif
+	die_if_kernel("Oops", regs, 0);
 }
 
 asmlinkage void

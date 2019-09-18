@@ -625,6 +625,12 @@ enum
 	ABI_FAKE_UTSNAME=6,	/* fake target utsname information */
 };
 
+enum {
+	CPU_NR_FREQ_MAX = 1,
+	CPU_NR_FREQ_MIN = 2,
+	CPU_NR_FREQ = 3
+};
+
 #ifdef __KERNEL__
 
 extern asmlinkage long sys_sysctl(struct __sysctl_args *);

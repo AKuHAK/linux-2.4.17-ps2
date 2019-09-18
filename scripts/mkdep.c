@@ -254,6 +254,82 @@ void add_path(const char * name)
 
 
 
+#ifdef __CYGWIN__
+static void add_dos_dash(char* s)
+{
+	int i, len = strlen(s);
+
+	s[len+1] = '\0';
+	for (i=len; i>0; i--)
+		s[i] = s[i-1];
+	s[0] = '-';
+}
+
+static char* cvt_illegal_dos_names(char* s, int start)
+{
+	char* ret;
+	char* scan, *scan_start;
+	int full_len = strlen(s);
+	int start_len = strlen(&s[start]);
+	
+	ret = malloc(full_len + start_len);
+	if (!ret)
+		return NULL;
+	
+	strcpy(ret, s);
+	scan_start = &ret[start];
+	
+	/*
+	 * Perl equivalent: s/\/com(\d)/\/com-\1/g;
+	 */
+	scan = scan_start;
+	while ((scan = strstr(scan, "/com")) != NULL) {
+		if (scan[4] >= '0' && scan[4] <= '9')
+			add_dos_dash(&scan[4]);
+		scan += 4;
+	}
+	
+	/*
+	 * Perl equivalent: s/\/lpt(\d)/\/lpt-\1/g;
+	 */
+	scan = scan_start;
+	while ((scan = strstr(scan, "/lpt")) != NULL) {
+		if (scan[4] >= '0' && scan[4] <= '9')
+			add_dos_dash(&scan[4]);
+		scan += 4;
+	}
+
+	/*
+	 * Perl equivalent: s/\/aux/\/aux-/g;
+	 */
+	scan = scan_start;
+	while ((scan = strstr(scan, "/aux")) != NULL) {
+		add_dos_dash(&scan[4]);
+		scan += 4;
+	}
+
+	scan = scan_start;
+	while ((scan = strstr(scan, "/prn")) != NULL) {
+		add_dos_dash(&scan[4]);
+		scan += 4;
+	}
+
+	scan = scan_start;
+	while ((scan = strstr(scan, "/con")) != NULL) {
+		add_dos_dash(&scan[4]);
+		scan += 4;
+	}
+
+	scan = scan_start;
+	while ((scan = strstr(scan, "/nul")) != NULL) {
+		add_dos_dash(&scan[4]);
+		scan += 4;
+	}
+	
+	return ret;
+}
+#endif
+
 /*
  * Record the use of a CONFIG_* word.
  */
@@ -280,7 +356,20 @@ void use_config(const char * name, int len)
 	define_config(pc, len);
 
 	do_depname();
+
+#ifdef __CYGWIN__
+	pc = cvt_illegal_dos_names(path_array[paths-1].buffer,
+				   path_array[paths-1].len + 7);
+	if (!pc) {
+		perror("malloc");
+		exit(1);
+	}
+
+	printf(" \\\n   $(wildcard %s.h)", pc);
+	free(pc);
+#else
 	printf(" \\\n   $(wildcard %s.h)", path_array[paths-1].buffer);
+#endif
 }
 
 

@@ -25,6 +25,9 @@
 #include <linux/interrupt.h>
 
 int pm_active;
+#if	defined(CONFIG_ARCH_SA1100)
+int pm_current_state = PM_STATE_NORMAL;
+#endif
 
 /*
  *	Locking notes:
@@ -291,3 +294,6 @@ EXPORT_SYMBOL(pm_send);
 EXPORT_SYMBOL(pm_send_all);
 EXPORT_SYMBOL(pm_find);
 EXPORT_SYMBOL(pm_active);
+#if	defined(CONFIG_ARCH_SA1100)
+EXPORT_SYMBOL(pm_current_state);
+#endif

@@ -59,6 +59,7 @@ extern volatile unsigned long smp_invalidate_needed;
 extern int pic_mode;
 extern int smp_num_siblings;
 extern int cpu_sibling_map[];
+extern int phys_proc_id[NR_CPUS];
 
 extern void smp_flush_tlb(void);
 extern void smp_message_irq(int cpl, void *dev_id, struct pt_regs *regs);

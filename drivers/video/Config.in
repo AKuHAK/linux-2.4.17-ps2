@@ -26,14 +26,33 @@ if [ "$CONFIG_FB" = "y" ]; then
 	    fi
 	 fi
       fi
+      if [ "$CONFIG_PCI" = "y" ]; then
+         tristate '  Permedia3 support (EXPERIMENTAL)' CONFIG_FB_PM3
+      fi
    fi
-   if [ "$CONFIG_ARCH_ACORN" = "y" ]; then
-      bool '  Acorn VIDC support' CONFIG_FB_ACORN
+   if [ "$CONFIG_ARM" = "y" ]; then
+     dep_bool '  Acorn VIDC support' CONFIG_FB_ACORN $CONFIG_ARCH_ACORN
+     dep_bool '  Anakin LCD support' CONFIG_FB_ANAKIN $CONFIG_ARCH_ANAKIN
+     dep_bool '  CLPS711X LCD support' CONFIG_FB_CLPS711X $CONFIG_ARCH_CLPS711X
+     dep_bool '  SA-1100 LCD support' CONFIG_FB_SA1100 $CONFIG_ARCH_SA1100
+     if [ "$CONFIG_FB_SA1100" = "y" -a "$CONFIG_SA1100_CERF" = "y" ]; then
+        choice 'CerfBoard LCD Display Size' \
+		"3.8_Color		CONFIG_CERF_LCD_38_A \
+		 3.8_Mono		CONFIG_CERF_LCD_38_B \
+		 5.7		CONFIG_CERF_LCD_57_A \
+		 7.2		CONFIG_CERF_LCD_72_A" 5.7
+     fi
+     if [ "$CONFIG_FB_SA1100" = "y" -a "$CONFIG_SA1100_CERF_CPLD" = "y" ]; then
+       bool 'Cerfboard Backlight (CerfPDA)' CONFIG_SA1100_CERF_LCD_BACKLIGHT
+     fi
+     if [ "$CONFIG_FB_SA1100" = "y" -a "$CONFIG_SA1100_PFS168" = "y" ]; then
+        choice 'PFS-168 SA-1110 LCD Display Options' \
+		"CSTN          CONFIG_PFS168_SASTN \
+	 	 TFT           CONFIG_PFS168_SATFT" TFT
+     fi
+     dep_bool '  PXA LCD support' CONFIG_FB_PXA $CONFIG_ARCH_PXA
    fi
-   dep_tristate '  Cyber2000 support' CONFIG_FB_CYBER2000 $CONFIG_PCI
-   if [ "$CONFIG_ARCH_SA1100" = "y" ]; then
-      bool '  SA-1100 LCD support' CONFIG_FB_SA1100
-   fi
+   dep_tristate '  CyberPro 2000/2010/5000 support' CONFIG_FB_CYBER2000 $CONFIG_PCI
    if [ "$CONFIG_APOLLO" = "y" ]; then
       define_bool CONFIG_FB_APOLLO y
    fi
@@ -70,8 +89,23 @@ if [ "$CONFIG_FB" = "y" ]; then
       dep_bool '  Apple "valkyrie" display support' CONFIG_FB_VALKYRIE $CONFIG_ALL_PPC
       bool '  Chips 65550 display support' CONFIG_FB_CT65550
       bool '  IMS Twin Turbo display support' CONFIG_FB_IMSTT
-      bool '  S3 Trio display support' CONFIG_FB_S3TRIO
+      dep_bool '  S3 Trio display support' CONFIG_FB_S3TRIO $CONFIG_ALL_PPC
       tristate '  VGA 16-color graphics console' CONFIG_FB_VGA16
+      if [ "$CONFIG_8xx" = "y" ]; then
+	 dep_tristate '  RPX LCD display support' CONFIG_FB_RPX $CONFIG_RPXLITE
+	 if [ "$CONFIG_FB_RPX" != "n" ]; then
+	    bool '    Debug RPX frame buffer' CONFIG_FB_RPX_DEBUG
+	    choice '    RPX LCD Display Options'        \
+		"NEC            CONFIG_FB_RPX_LCD_NEC   \
+		 Sharp          CONFIG_FB_RPX_LCD_SHARP" NEC
+	 fi
+      fi
+      if [ "$CONFIG_XILINX_OCP" = "y" ]; then
+	 tristate '  Xilinx LCD display support' CONFIG_FB_XILINX
+         if [ "$CONFIG_FB_XILINX" != "n" ]; then
+            bool '    Rotate display' CONFIG_FB_XILINX_ROTATE
+         fi
+      fi
    fi
    if [ "$CONFIG_PARISC" = "y" ]; then
       bool '  Generic STI frame buffer device support' CONFIG_FB_STI
@@ -93,6 +127,30 @@ if [ "$CONFIG_FB" = "y" ]; then
       tristate '  Hercules mono graphics console (EXPERIMENTAL)' CONFIG_FB_HGA
       define_bool CONFIG_VIDEO_SELECT y
    fi
+   if [ "$ARCH" = "mips" ]; then
+      bool '  Epson 1355 framebuffer support' CONFIG_FB_E1355
+      if [ "$CONFIG_FB_E1355" = "y" ]; then
+	 hex '    Register Base Address' CONFIG_E1355_REG_BASE a8000000
+	 hex '    Framebuffer Base Address' CONFIG_E1355_FB_BASE a8200000
+      fi
+      dep_tristate '  Epson SED1356 framebuffer support' CONFIG_FB_E1356 $CONFIG_EXPERIMENTAL $CONFIG_PCI
+      if [ "$CONFIG_MIPS_PB1000" = "y" -a "$CONFIG_FB_E1356" != "n" ]; then
+	 bool '    Use CRT on Pb1000 (J65)' CONFIG_PB1000_CRT
+	 bool '    Use Compsite NTSC on Pb1000 (J63)' CONFIG_PB1000_NTSC
+	 bool '    Use TFT Panel on Pb1000 (J64)' CONFIG_PB1000_TFT
+      fi
+      if [ "$CONFIG_MIPS_PB1500" = "y" -a "$CONFIG_FB_E1356" != "n" ]; then
+	 bool '    Use CRT on Pb1500 ' CONFIG_PB1500_CRT
+	 bool '    Use TFT Panel on Pb1500 ' CONFIG_PB1500_TFT
+      fi
+      if [ "$CONFIG_MIPS_PB1100" = "y" -a "$CONFIG_FB_E1356" != "n" ]; then
+	 bool '    Use CRT on Pb1100 ' CONFIG_PB1500_CRT
+	 bool '    Use TFT Panel on Pb1100 ' CONFIG_PB1500_TFT
+      fi
+      if [ "$CONFIG_MIPS_PB1100" = "y" ]; then
+	 bool '    Au1100 LCD Driver' CONFIG_FB_AU1100
+      fi
+   fi
    if [ "$CONFIG_VISWS" = "y" ]; then
       tristate '  SGI Visual Workstation framebuffer support' CONFIG_FB_SGIVW
       define_bool CONFIG_BUS_I2C y
@@ -108,11 +166,16 @@ if [ "$CONFIG_FB" = "y" ]; then
       tristate '  NEC PowerVR 2 display support' CONFIG_FB_PVR2
       dep_bool '    Debug pvr2fb' CONFIG_FB_PVR2_DEBUG $CONFIG_FB_PVR2
    fi
-   if [ "$CONFIG_SUPERH" = "y" ]; then
-      bool '  Epson 1355 framebuffer support' CONFIG_FB_E1355
-      if [ "$CONFIG_FB_E1355" = "y" ]; then
-         hex '    Register Base Address' CONFIG_E1355_REG_BASE a8000000
-         hex '    Framebuffer Base Address' CONFIG_E1355_FB_BASE a8200000
+   bool '  MediaQ Framebuffer support' CONFIG_FB_MQ200	 
+   if [ "$CONFIG_SA1100_ASSABET" = "y" -o \
+        "$CONFIG_SA1100_PFS168" = "y" ]; then
+      if [ "$CONFIG_FB_MQ200" = "y" ]; then
+         define_bool CONFIG_MQ200_SA1110 y
+         if [ "$CONFIG_SA1100_PFS168" = "y" ]; then
+            choice 'PFS-168 MQ-200 Display Options' \
+            "VGA		CONFIG_PFS168_MQVGA \
+             TFT		CONFIG_PFS168_MQTFT" VGA
+         fi
       fi
    fi
    if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
@@ -135,6 +198,9 @@ if [ "$CONFIG_FB" = "y" ]; then
 	 if [ "$CONFIG_FB_ATY" != "n" ]; then
 	    bool '    Mach64 GX support (EXPERIMENTAL)' CONFIG_FB_ATY_GX
 	    bool '    Mach64 CT/VT/GT/LT (incl. 3D RAGE) support' CONFIG_FB_ATY_CT
+	    if [ "$CONFIG_FB_ATY_CT" != "n" ]; then
+	       bool '    Xpert98 PCI support' CONFIG_FB_XPERT98
+	    fi
 	 fi
  	 tristate '  ATI Radeon display support (EXPERIMENTAL)' CONFIG_FB_RADEON
 	 tristate '  ATI Rage128 display support (EXPERIMENTAL)' CONFIG_FB_ATY128
@@ -146,6 +212,7 @@ if [ "$CONFIG_FB" = "y" ]; then
 	 tristate '  3Dfx Banshee/Voodoo3 display support (EXPERIMENTAL)' CONFIG_FB_3DFX
 	 tristate '  3Dfx Voodoo Graphics (sst1) support (EXPERIMENTAL)' CONFIG_FB_VOODOO1
       fi
+      tristate '  ITE IT8181 framebuffer support' CONFIG_FB_IT8181
    fi
    if [ "$ARCH" = "sparc" -o "$ARCH" = "sparc64" ]; then
       bool '  SBUS and UPA framebuffers' CONFIG_FB_SBUS
@@ -226,7 +293,7 @@ if [ "$CONFIG_FB" = "y" ]; then
 	   "$CONFIG_FB_MAC" = "y" -o "$CONFIG_FB_RETINAZ3" = "y" -o \
 	   "$CONFIG_FB_VIRGE" = "y" -o "$CONFIG_FB_VIRTUAL" = "y" -o \
 	   "$CONFIG_FB_BWTWO" = "y" -o "$CONFIG_FB_CLGEN" = "y"  -o \
-	   "$CONFIG_FB_TX3912" = "y" ]; then
+	   "$CONFIG_FB_TX3912" = "y" -o "$CONFIG_FB_CLPS711X" = "y" ]; then
 	 define_tristate CONFIG_FBCON_MFB y
       else
 	 if [ "$CONFIG_FB_ACORN" = "m" -o "$CONFIG_FB_AMIGA" = "m" -o \
@@ -234,19 +301,20 @@ if [ "$CONFIG_FB" = "y" ]; then
 	      "$CONFIG_FB_MAC" = "m" -o "$CONFIG_FB_RETINAZ3" = "m" -o \
 	      "$CONFIG_FB_VIRGE" = "m" -o "$CONFIG_FB_VIRTUAL" = "m" -o \
 	      "$CONFIG_FB_BWTWO" = "m" -o "$CONFIG_FB_CLGEN" = "m" -o \
-	      "$CONFIG_FB_TX3912" = "m" ]; then
+	      "$CONFIG_FB_TX3912" = "m" -o "$CONFIG_FB_CLPS711X" = "m"  ]; then
 	    define_tristate CONFIG_FBCON_MFB m
 	 fi
       fi
       if [ "$CONFIG_FB_ACORN" = "y" -o "$CONFIG_FB_MAC" = "y" -o \
 	   "$CONFIG_FB_SA1100" = "y" -o "$CONFIG_FB_VIRTUAL" = "y" -o \
-	   "$CONFIG_FB_TX3912" = "y" ]; then
+	   "$CONFIG_FB_TX3912" = "y"  -o "$CONFIG_FB_CLPS711X" = "y" -o \
+	   "$CONFIG_FB_PXA" = "y" ]; then
 	 define_tristate CONFIG_FBCON_CFB2 y
 	 define_tristate CONFIG_FBCON_CFB4 y
       else
 	 if [ "$CONFIG_FB_ACORN" = "m" -o "$CONFIG_FB_MAC" = "m" -o \
 	      "$CONFIG_FB_SA1100" = "m" -o "$CONFIG_FB_VIRTUAL" = "m" -o \
-	      "$CONFIG_FB_TX3912" = "m" ]; then
+	      "$CONFIG_FB_TX3912" = "m" -o "$CONFIG_FB_CLPS711X" = "m" ]; then
 	    define_tristate CONFIG_FBCON_CFB2 m
 	    define_tristate CONFIG_FBCON_CFB4 m
 	 fi
@@ -268,7 +336,8 @@ if [ "$CONFIG_FB" = "y" ]; then
 	   "$CONFIG_FB_SA1100" = "y" -o "$CONFIG_FB_3DFX" = "y" -o \
 	   "$CONFIG_FB_PMAG_BA" = "y" -o "$CONFIG_FB_PMAGB_B" = "y" -o \
 	   "$CONFIG_FB_MAXINE" = "y" -o "$CONFIG_FB_TX3912" = "y" -o \
-	   "$CONFIG_FB_SIS" = "y" ]; then
+	   "$CONFIG_FB_SIS" = "y" -o "$CONFIG_FB_MQ200" = "y" -o \
+	   "$CONFIG_FB_PM3" = "y" -o "$CONFIG_FB_PXA" = "y" ]; then
 	 define_tristate CONFIG_FBCON_CFB8 y
       else
 	 if [ "$CONFIG_FB_ACORN" = "m" -o "$CONFIG_FB_ATARI" = "m" -o \
@@ -288,7 +357,8 @@ if [ "$CONFIG_FB" = "y" ]; then
 	      "$CONFIG_FB_PMAG_BA" = "m" -o "$CONFIG_FB_PMAGB_B" = "m" -o \
 	      "$CONFIG_FB_MAXINE" = "m" -o "$CONFIG_FB_RADEON" = "m" -o \
 	      "$CONFIG_FB_SA1100" = "m" -o "$CONFIG_FB_SIS" = "m" -o \
-	      "$CONFIG_FB_TX3912" = "m" ]; then
+	      "$CONFIG_FB_TX3912" = "m" -o "$CONFIG_FB_MQ200" = "m" -o \
+	      "$CONFIG_FB_PM3" = "m" ]; then
 	    define_tristate CONFIG_FBCON_CFB8 m
 	 fi
       fi
@@ -304,7 +374,9 @@ if [ "$CONFIG_FB" = "y" ]; then
 	   "$CONFIG_FB_RIVA" = "y" -o "$CONFIG_FB_ATY128" = "y" -o \
 	   "$CONFIG_FB_CYBER2000" = "y" -o "$CONFIG_FB_3DFX" = "y"  -o \
 	   "$CONFIG_FB_SIS" = "y" -o "$CONFIG_FB_SA1100" = "y" -o \
-	   "$CONFIG_FB_PVR2" = "y" -o "$CONFIG_FB_VOODOO1" = "y" ]; then
+	   "$CONFIG_FB_PVR2" = "y" -o "$CONFIG_FB_VOODOO1" = "y" -o \
+	   "$CONFIG_FB_MQ200" = "y" -o "$CONFIG_FB_ANAKIN" = "y" -o \
+	   "$CONFIG_FB_PM3" = "y" -o "$CONFIG_FB_PXA" = "y" ]; then
 	 define_tristate CONFIG_FBCON_CFB16 y
       else
 	 if [ "$CONFIG_FB_ATARI" = "m" -o "$CONFIG_FB_ATY" = "m" -o \
@@ -319,7 +391,9 @@ if [ "$CONFIG_FB" = "y" ]; then
 	      "$CONFIG_FB_RIVA" = "m" -o "$CONFIG_FB_ATY128" = "m" -o \
 	      "$CONFIG_FB_CYBER2000" = "m" -o "$CONFIG_FB_SIS" = "m" -o \
 	      "$CONFIG_FB_SA1100" = "m" -o "$CONFIG_FB_RADEON" = "m" -o \
-	      "$CONFIG_FB_PVR2" = "m" -o "$CONFIG_FB_VOODOO1" = "m" ]; then
+	      "$CONFIG_FB_PVR2" = "m" -o "$CONFIG_FB_VOODOO1" = "m" -o \
+	      "$CONFIG_FB_MQ200" = "m" -o "$CONFIG_FB_ANAKIN" = "m" -o \
+	      "$CONFIG_FB_PM3" = "m" ]; then
 	    define_tristate CONFIG_FBCON_CFB16 m
 	 fi
       fi
@@ -328,7 +402,7 @@ if [ "$CONFIG_FB" = "y" ]; then
 	   "$CONFIG_FB_MATROX" = "y" -o "$CONFIG_FB_PM2" = "y" -o \
            "$CONFIG_FB_ATY128" = "y" -o "$CONFIG_FB_RADEON" = "y" -o \
 	   "$CONFIG_FB_CYBER2000" = "y" -o "$CONFIG_FB_PVR2" = "y" -o \
-	   "$CONFIG_FB_VOODOO1" = "y" ]; then
+	   "$CONFIG_FB_VOODOO1" = "y" -o "$CONFIG_FB_PM3" = "y" ]; then
 	 define_tristate CONFIG_FBCON_CFB24 y
       else
 	 if [ "$CONFIG_FB_ATY" = "m" -o "$CONFIG_FB_VIRTUAL" = "m" -o \
@@ -336,7 +410,7 @@ if [ "$CONFIG_FB" = "y" ]; then
 	      "$CONFIG_FB_MATROX" = "m" -o "$CONFIG_FB_PM2" = "m" -o \
 	      "$CONFIG_FB_ATY128" = "m" -o "$CONFIG_FB_RADEON" = "m" -o \
 	      "$CONFIG_FB_CYBER2000" = "m" -o "$CONFIG_FB_PVR2" = "m" -o \
-	      "$CONFIG_FB_VOODOO1" = "m" ]; then
+	      "$CONFIG_FB_VOODOO1" = "m" -o "$CONFIG_FB_PM3" = "m" ]; then
 	    define_tristate CONFIG_FBCON_CFB24 m
 	 fi
       fi
@@ -349,7 +423,8 @@ if [ "$CONFIG_FB" = "y" ]; then
 	   "$CONFIG_FB_FM2" = "y" -o "$CONFIG_FB_SGIVW" = "y" -o \
 	   "$CONFIG_FB_RADEON" = "y" -o "$CONFIG_FB_PVR2" = "y" -o \
 	   "$CONFIG_FB_3DFX" = "y" -o "$CONFIG_FB_SIS" = "y" -o \
-	   "$CONFIG_FB_VOODOO1" = "y" ]; then
+	   "$CONFIG_FB_VOODOO1" = "y" -o "$CONFIG_FB_PM3" = "y" -o \
+	   "$CONFIG_FB_XILINX" = "y" ]; then
 	 define_tristate CONFIG_FBCON_CFB32 y
       else
 	 if [ "$CONFIG_FB_ATARI" = "m" -o "$CONFIG_FB_ATY" = "m" -o \
@@ -360,7 +435,8 @@ if [ "$CONFIG_FB" = "y" ]; then
 	      "$CONFIG_FB_RIVA" = "m" -o "$CONFIG_FB_ATY128" = "m" -o \
 	      "$CONFIG_FB_3DFX" = "m" -o "$CONFIG_FB_RADEON" = "m" -o \
 	      "$CONFIG_FB_SGIVW" = "m" -o "$CONFIG_FB_SIS" = "m" -o \
-	      "$CONFIG_FB_PVR2" = "m" -o "$CONFIG_FB_VOODOO1" = "m" ]; then
+	      "$CONFIG_FB_PVR2" = "m" -o "$CONFIG_FB_VOODOO1" = "m" -o \
+	      "$CONFIG_FB_PM3" = "m" -o "$CONFIG_FB_XILINX" = "m" ]; then
 	    define_tristate CONFIG_FBCON_CFB32 m
 	 fi
       fi

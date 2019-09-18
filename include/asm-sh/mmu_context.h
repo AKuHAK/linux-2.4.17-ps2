@@ -166,6 +166,10 @@ static __inline__ void switch_mm(struct mm_struct *prev,
 				 struct mm_struct *next,
 				 struct task_struct *tsk, unsigned int cpu)
 {
+#ifdef CONFIG_PREEMPT
+	if (preempt_is_disabled() == 0)
+		BUG();
+#endif
 	if (prev != next) {
 		unsigned long __pgdir = (unsigned long)next->pgd;
 

@@ -100,6 +100,10 @@ static const char version[] =
 #define ei_block_input (ei_local->block_input)
 #define ei_get_8390_hdr (ei_local->get_8390_hdr)
 
+#ifdef CONFIG_REDWOOD_4
+#include "8390_redwood.h"
+#endif
+
 /* use 0 for production, 1 for verification, >2 for debug */
 #ifndef ei_debug
 int ei_debug = 1;
@@ -280,6 +284,14 @@ static int ei_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	   
 	spin_lock_irqsave(&ei_local->page_lock, flags);
 	outb_p(0x00, e8390_base + EN0_IMR);
+#ifdef CONFIG_CPU_HAS_WB
+	{
+		/* Read to assure that previous outb_p is done in controller. */
+		volatile unsigned char v = inb_p(e8390_base + EN0_COUNTER2);
+		/* mb to prevent interrupts from being enabled. */
+		mb();
+	}
+#endif
 	spin_unlock_irqrestore(&ei_local->page_lock, flags);
 	
 	
@@ -725,7 +737,11 @@ static void ei_receive(struct net_device *dev)
 			ei_local->stat.rx_errors++;
 			ei_local->stat.rx_length_errors++;
 		}
+#ifdef CONFIG_REDWOOD_4
+		 else if ((pkt_stat & 0x1F) == ENRSR_RXOK) 
+#else
 		 else if ((pkt_stat & 0x0F) == ENRSR_RXOK) 
+#endif
 		{
 			struct sk_buff *skb;
 			
@@ -1059,9 +1075,15 @@ void NS8390_init(struct net_device *dev, int startp)
 	long e8390_base = dev->base_addr;
 	struct ei_device *ei_local = (struct ei_device *) dev->priv;
 	int i;
+#ifdef CONFIG_REDWOOD_4
+	int endcfg = ei_local->word16
+	    ? (0x28 | ENDCFG_WTS                                         )
+	    : 0x28;
+#else
 	int endcfg = ei_local->word16
 	    ? (0x48 | ENDCFG_WTS | (ei_local->bigendian ? ENDCFG_BOS : 0))
 	    : 0x48;
+#endif
     
 	if(sizeof(struct e8390_pkt_hdr)!=4)
     		panic("8390.c: header struct mispacked\n");    

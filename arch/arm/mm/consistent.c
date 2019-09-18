@@ -99,8 +99,11 @@ void *pci_alloc_consistent(struct pci_dev *hwdev, size_t size, dma_addr_t *handl
 #ifdef CONFIG_PCI
 	if ((hwdev) == NULL ||
 	    (hwdev)->dma_mask != 0xffffffff)
-#endif
 		__gfp |= GFP_DMA;
+#endif
+#if defined(CONFIG_ARCH_IXP425) && (CONFIG_IXP425_SDRAM_SIZE > 64)
+	__gfp |= GFP_DMA;
+#endif
 
 	__ret = consistent_alloc(__gfp, (size),
 				 (handle));

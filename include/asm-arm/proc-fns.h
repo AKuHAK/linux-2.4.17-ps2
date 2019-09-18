@@ -60,6 +60,14 @@
 #   define CPU_NAME arm920
 #  endif
 # endif
+# ifdef CONFIG_CPU_ARM922T
+#  ifdef CPU_NAME
+#   undef  MULTI_CPU
+#   define MULTI_CPU
+#  else
+#   define CPU_NAME arm922
+#  endif
+# endif
 # ifdef CONFIG_CPU_ARM926T
 #  ifdef CPU_NAME
 #   undef  MULTI_CPU
@@ -82,6 +90,14 @@
 #   define MULTI_CPU
 #  else
 #   define CPU_NAME sa1100
+#  endif
+# endif
+# ifdef CONFIG_CPU_XSCALE
+#  ifdef CPU_NAME
+#   undef  MULTI_CPU
+#   define MULTI_CPU
+#  else
+#   define CPU_NAME xscale
 #  endif
 # endif
 #endif

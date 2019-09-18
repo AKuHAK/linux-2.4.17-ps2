@@ -1,5 +1,5 @@
 /*
- * BK Id: SCCS/s.ptrace.h 1.5 05/17/01 18:14:25 cort
+ * BK Id: SCCS/s.ptrace.h 1.9 10/15/01 20:29:25 paulus
  */
 #ifndef _PPC_PTRACE_H
 #define _PPC_PTRACE_H
@@ -36,6 +36,13 @@ struct pt_regs {
 	unsigned long dar;		/* Fault registers */
 	unsigned long dsisr;
 	unsigned long result; 		/* Result of a system call */
+
+#if defined(CONFIG_4xx)
+	unsigned long dbcr0;
+	unsigned long dbcr1;
+	unsigned long pad0;
+	unsigned long pad1;
+#endif
 };
 #endif
 

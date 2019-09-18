@@ -124,6 +124,10 @@ __entry:
  * FIXME - No bootloader, so manually set 'r1' with our architecture number.
  */
 		mov	r1, #MACH_TYPE_L7200
+#elif defined(CONFIG_ARCH_IXP1200)
+		mov	r1, #MACH_TYPE_IXP1200
+#elif defined(CONFIG_ARCH_INTEGRATOR)
+		mov	r1, #MACH_TYPE_INTEGRATOR
 #endif
 
 		mov	r0, #F_BIT | I_BIT | MODE_SVC	@ make sure svc mode
@@ -245,21 +249,27 @@ __create_page_tables:
 		add	r3, r3, #1 << 20
 		str	r3, [r0], #4			@ KERNEL + 3MB
 
+#ifndef	CONFIG_ARCH_IXP1200
 		/*
 		 * Ensure that the first section of RAM is present.
 		 * we assume that:
 		 *  1. the RAM is aligned to a 32MB boundary
 		 *  2. the kernel is executing in the same 32MB chunk
 		 *     as the start of RAM.
+ 		 *
+		 * This doesn't work on IXP platforms as the lower 8MB or
+ 		 * more of the physical memory map may be reserved for  use 
+		 * by the microengines and cannot be touched by Linux. This
+		 * means that the RAM will not be aligned to 32MB chunks.
 		 */
 		bic	r0, r0, #0x01f00000 >> 18	@ round down
 		and	r2, r5, #0xfe000000		@ round down
 		add	r3, r8, r2			@ flags + rambase
 		str	r3, [r0]
-
+#endif
 		bic	r8, r8, #0x0c			@ turn off cacheable
 							@ and bufferable bits
-#ifdef CONFIG_DEBUG_LL
+#if	defined(CONFIG_DEBUG_LL) || defined(CONFIG_KGDB)
 		/*
 		 * Map in IO space for serial debugging.
 		 * This allows debug messages to be output

@@ -153,8 +153,7 @@ static void __init pci_fixup_dec21285(struct pci_dev *dev)
 }
 
 /*
- * PCI IDE controllers use non-standard I/O port
- * decoding, respect it.
+ * PCI IDE controllers use non-standard I/O port decoding, respect it.
  */
 static void __init pci_fixup_ide_bases(struct pci_dev *dev)
 {
@@ -181,8 +180,104 @@ static void __init pci_fixup_dec21142(struct pci_dev *dev)
 	pci_write_config_dword(dev, 0x40, 0x80000000);
 }
 
+/*
+ * The CY82C693 needs some rather major fixups to ensure that it does
+ * the right thing.  Idea from the Alpha people, with a few additions.
+ *
+ * We ensure that the IDE base registers are set to 1f0/3f4 for the
+ * primary bus, and 170/374 for the secondary bus.  Also, hide them
+ * from the PCI subsystem view as well so we won't try to perform
+ * our own auto-configuration on them.
+ *
+ * In addition, we ensure that the PCI IDE interrupts are routed to
+ * IRQ 14 and IRQ 15 respectively.
+ *
+ * The above gets us to a point where the IDE on this device is
+ * functional.  However, The CY82C693U _does not work_ in bus
+ * master mode without locking the PCI bus solid.
+ */
+static void __init pci_fixup_cy82c693(struct pci_dev *dev)
+{
+	if ((dev->class >> 8) == PCI_CLASS_STORAGE_IDE) {
+		u32 base0, base1;
+
+		if (dev->class & 0x80) {	/* primary */
+			base0 = 0x1f0;
+			base1 = 0x3f4;
+		} else {			/* secondary */
+			base0 = 0x170;
+			base1 = 0x374;
+		}
+
+		pci_write_config_dword(dev, PCI_BASE_ADDRESS_0,
+				       base0 | PCI_BASE_ADDRESS_SPACE_IO);
+		pci_write_config_dword(dev, PCI_BASE_ADDRESS_1,
+				       base1 | PCI_BASE_ADDRESS_SPACE_IO);
+
+		dev->resource[0].start = 0;
+		dev->resource[0].end   = 0;
+		dev->resource[0].flags = 0;
+
+		dev->resource[1].start = 0;
+		dev->resource[1].end   = 0;
+		dev->resource[1].flags = 0;
+	} else if (PCI_FUNC(dev->devfn) == 0) {
+		/*
+		 * Setup IDE IRQ routing.
+		 */
+		pci_write_config_byte(dev, 0x4b, 14);
+		pci_write_config_byte(dev, 0x4c, 15);
+
+		/*
+		 * Disable FREQACK handshake, enable USB.
+		 */
+		pci_write_config_byte(dev, 0x4d, 0x41);
+
+		/*
+		 * Enable PCI retry, and PCI post-write buffer.
+		 */
+		pci_write_config_byte(dev, 0x44, 0x17);
+
+		/*
+		 * Enable ISA master and DMA post write buffering.
+		 */
+		pci_write_config_byte(dev, 0x45, 0x03);
+	}
+}
+
+
+#ifdef CONFIG_ARCH_IXP1200
+/* Properly setup 32-byte cache line size */
+static void __init pci_fixup_ixp1200(struct pci_dev *dev)
+{
+	u8 foo;
+	pci_read_config_byte(dev, PCI_CACHE_LINE_SIZE, &foo);
+
+	printk("PCI: %s has cache line of %#02x\n", dev->name, foo);
+
+	pci_write_config_byte(dev, PCI_CACHE_LINE_SIZE, 8);
+
+}
+#endif
+
+
 struct pci_fixup pcibios_fixups[] = {
+#ifdef CONFIG_ARCH_IXP1200
 	{
+		PCI_FIXUP_FINAL,
+		PCI_ANY_ID,		PCI_ANY_ID,
+		pci_fixup_ixp1200
+	},
+#endif
+	{
+		PCI_FIXUP_HEADER,
+		PCI_VENDOR_ID_CONTAQ,	PCI_DEVICE_ID_CONTAQ_82C693,
+		pci_fixup_cy82c693
+	}, {
+		PCI_FIXUP_HEADER,
+		PCI_VENDOR_ID_DEC,	PCI_DEVICE_ID_DEC_21142,
+		pci_fixup_dec21142
+	}, {
 		PCI_FIXUP_HEADER,
 		PCI_VENDOR_ID_DEC,	PCI_DEVICE_ID_DEC_21285,
 		pci_fixup_dec21285
@@ -198,10 +293,6 @@ struct pci_fixup pcibios_fixups[] = {
 		PCI_FIXUP_HEADER,
 		PCI_ANY_ID,		PCI_ANY_ID,
 		pci_fixup_ide_bases
-	}, {
-		PCI_FIXUP_HEADER,
-		PCI_VENDOR_ID_DEC,	PCI_DEVICE_ID_DEC_21142,
-		pci_fixup_dec21142
 	}, { 0 }
 };
 
@@ -406,6 +497,12 @@ extern struct hw_pci personal_server_pci;
 extern struct hw_pci ftv_pci;
 extern struct hw_pci shark_pci;
 extern struct hw_pci integrator_pci;
+extern struct hw_pci iq80310_pci;
+extern struct hw_pci iq80321_pci;
+extern struct hw_pci ixp1200_pci;
+extern struct hw_pci brh_pci;
+extern struct hw_pci ixdp2400_pci;
+extern struct hw_pci ixdp425_pci;
 
 void __init pcibios_init(void)
 {
@@ -455,6 +552,42 @@ void __init pcibios_init(void)
 			break;
 		}
 #endif
+#ifdef CONFIG_ARCH_IQ80310
+		if (machine_is_iq80310()) {
+			hw = &iq80310_pci;
+			break;
+		}
+#endif
+#ifdef CONFIG_ARCH_IQ80321
+		if (machine_is_iq80321()) {
+			hw = &iq80321_pci;
+			break;
+		}
+#endif
+#ifdef CONFIG_ARCH_IXP1200
+		if(machine_is_ixp1200()) {
+			hw = &ixp1200_pci;
+			break;
+		}
+#endif
+#ifdef CONFIG_ARCH_BRH
+		if (machine_is_brh()) {
+			hw = &brh_pci;
+			break;
+		}
+#endif
+#ifdef CONFIG_ARCH_IXP2000
+		if (machine_is_ixdp2400()) {
+			hw = &ixdp2400_pci;
+			break;
+		}
+#endif
+#ifdef CONFIG_ARCH_IXP425
+		if (machine_is_ixdp425()) {
+			hw = &ixdp425_pci;
+			break;
+		}
+#endif
 	} while (0);
 
 	if (hw == NULL)
@@ -491,7 +624,14 @@ void __init pcibios_init(void)
 	/*
 	 * Assign any unassigned resources.
 	 */
+	
+	// TODO: Add CONFIG_PCI_AUTOCONFIG and make this DIE DIE DIE
+#if !defined(CONFIG_ARCH_IOP3XX) && !defined(CONFIG_ARCH_IXP1200) \
+	&& !defined(CONFIG_ARCH_ADIFCC) && !defined(CONFIG_ARCH_IXP425) && \
+	!defined(CONFIG_ARCH_IXP2000) 
 	pci_assign_unassigned_resources();
+#endif
+
 	pci_fixup_irqs(root->hw->swizzle, root->hw->map_irq);
 }
 

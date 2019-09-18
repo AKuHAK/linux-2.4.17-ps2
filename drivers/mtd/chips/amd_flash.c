@@ -3,7 +3,7 @@
  *
  * Author: Jonas Holmberg <jonas.holmberg@axis.com>
  *
- * $Id: amd_flash.c,v 1.15 2001/10/02 15:05:11 dwmw2 Exp $
+ * $Id: amd_flash.c,v 1.1 2001/11/30 20:00:25 jsimmons Exp $
  *
  * Copyright (c) 2001 Axis Communications AB
  *
@@ -58,6 +58,7 @@
 #define MANUFACTURER_TOSHIBA	0x0098
 
 /* AMD */
+#define AM29F040B	0x00a4
 #define AM29F800BB	0x2258
 #define AM29F800BT	0x22D6
 #define AM29LV800BB	0x225B
@@ -424,6 +425,18 @@ static struct mtd_info *amd_flash_probe(struct map_info *map)
 	 */
 	const struct amd_flash_info table[] = {
 	{
+		mfr_id: MANUFACTURER_AMD,
+		dev_id: AM29F040B,
+		name: "AMD AM29F040B",
+		size: 0x00080000,
+		numeraseregions: 4,
+		regions: {
+			{ offset: 0x000000, erasesize: 0x04000, numblocks:  1 },
+			{ offset: 0x004000, erasesize: 0x02000, numblocks:  2 },
+			{ offset: 0x008000, erasesize: 0x08000, numblocks:  1 },
+			{ offset: 0x010000, erasesize: 0x10000, numblocks:  7 }
+		}
+	}, {
 		mfr_id: MANUFACTURER_AMD,
 		dev_id: AM29LV160DT,
 		name: "AMD AM29LV160DT",

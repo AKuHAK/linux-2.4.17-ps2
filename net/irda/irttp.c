@@ -105,8 +105,7 @@ int __init irttp_init(void)
  *    Called by module destruction/cleanup code
  *
  */
-#ifdef MODULE
-void irttp_cleanup(void) 
+void __exit irttp_cleanup(void) 
 {
 	/* Check for main structure */
 	ASSERT(irttp != NULL, return;);
@@ -124,7 +123,6 @@ void irttp_cleanup(void)
 
 	irttp = NULL;
 }
-#endif
 
 /*
  * Function irttp_open_tsap (stsap, notify)
@@ -1402,7 +1400,7 @@ static struct sk_buff *irttp_reassemble_skb(struct tsap_cb *self)
 	IRDA_DEBUG(2, __FUNCTION__ "(), self->rx_sdu_size=%d\n", 
 		   self->rx_sdu_size);
 
-	skb = dev_alloc_skb(TTP_HEADER + self->rx_sdu_size);
+	skb = dev_alloc_skb(/*TTP_HEADER*/2 + self->rx_sdu_size);
 	if (!skb)
 		return NULL;
 
@@ -1410,7 +1408,7 @@ static struct sk_buff *irttp_reassemble_skb(struct tsap_cb *self)
 	 * Need to reserve space for TTP header in case this skb needs to 
 	 * be requeued in case delivery failes
 	 */
-	skb_reserve(skb, TTP_HEADER);
+	skb_reserve(skb, /*TTP_HEADER*/2);
 	skb_put(skb, self->rx_sdu_size);
 
 	/*

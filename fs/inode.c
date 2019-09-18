@@ -567,6 +567,12 @@ static int invalidate_list(struct list_head *head, struct super_block * sb, stru
 		if (tmp == head)
 			break;
 		inode = list_entry(tmp, struct inode, i_list);
+
+		debug_lock_break(2); /* bkl is also held */
+		atomic_inc(&inode->i_count);
+		break_spin_lock_and_resched(&inode_lock);
+		atomic_dec(&inode->i_count);
+
 		if (inode->i_sb != sb)
 			continue;
 		invalidate_inode_buffers(inode);
@@ -668,8 +674,11 @@ void prune_icache(int goal)
 	int count;
 	struct inode * inode;
 
+	DEFINE_LOCK_COUNT();
+
 	spin_lock(&inode_lock);
 
+free_unused:
 	count = 0;
 	entry = inode_unused.prev;
 	while (entry != &inode_unused)
@@ -692,6 +701,14 @@ void prune_icache(int goal)
 		count++;
 		if (!--goal)
 			break;
+		if (TEST_LOCK_COUNT(32)) {
+			RESET_LOCK_COUNT();
+			debug_lock_break(1);
+			if (conditional_schedule_needed()) {
+				break_spin_lock(&inode_lock);
+				goto free_unused;
+			}
+		}
 	}
 	inodes_stat.nr_unused -= count;
 	spin_unlock(&inode_lock);

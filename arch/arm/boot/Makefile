@@ -48,7 +48,9 @@ INITRD_VIRT	 = 0xc0800000
 endif
 
 ifeq ($(CONFIG_ARCH_INTEGRATOR),y)
-ZTEXTADDR	 = 0x00008000
+ZTEXTADDR	 = 0x24000000
+ZBSSADDR	 = 0x00800000
+ZRELADDR	 = 0x00008000
 PARAMS_PHYS	 = 0x00000100
 INITRD_PHYS	 = 0x00800000
 INITRD_VIRT	 = 0xc0800000
@@ -114,8 +116,45 @@ ifeq ($(CONFIG_SA1111),y)
 endif
 endif
 
+ifeq ($(CONFIG_ARCH_PXA),y)
+ZTEXTADDR	 = 0xa0200000
+ZRELADDR	 = 0xa0008000
+endif
+
 ifeq ($(CONFIG_ARCH_ANAKIN),y)
 ZTEXTADDR	 = 0x20008000
+endif
+
+ifeq ($(CONFIG_ARCH_IOP3XX),y)
+ZRELADDR	 = 0xa0008000
+
+# for serial upload
+ZTEXTADDR	 = 0xa1008000
+
+# for direct flash execution
+# ZTEXTADDR       = 0x00060000
+# ZBSSADDR       = 0xa1008000
+endif
+
+ifeq ($(CONFIG_ARCH_ADIFCC),y)
+ZRELADDR	= 0xc0008000
+ZTEXTADDR	= 0xc1008000
+endif
+
+ifeq ($(CONFIG_ARCH_IXP425),y)
+ZRELADDR       	= 0x00008000
+ZTEXTADDR      	= 0x11600000
+PARAMS_PHYS	= 0x00002000
+endif
+
+ifeq ($(CONFIG_ARCH_IXP1200),y)
+ZTEXTADDR	= 0xc0808000
+ZRELADDR	= 0x$(shell echo $(CONFIG_IXP1200_SDRAM_BASE) | sed -e 's/0000$$/8000/')
+endif
+
+ifeq ($(CONFIG_ARCH_CAMELOT),y)
+ZTEXTADDR	 = 0x00a00000
+ZRELADDR	 = 0x00008000
 endif
 
 #
@@ -136,6 +175,9 @@ bzImage: zImage
 zImage:	$(CONFIGURE) compressed/vmlinux
 	$(OBJCOPY) -O binary -R .note -R .comment -S compressed/vmlinux $@
 
+zsrec: $(CONFIGURE) compressed/vmlinux
+	$(CROSS_COMPILE)objcopy -I elf32-little -O srec -R .note -R .comment -S $< $@   
+
 bootpImage: bootp/bootp
 	$(OBJCOPY) -O binary -R .note -R .comment -S bootp/bootp $@
 
@@ -155,8 +197,14 @@ install: $(CONFIGURE) Image
 zinstall: $(CONFIGURE) zImage
 	sh ./install.sh $(VERSION).$(PATCHLEVEL).$(SUBLEVEL)$(EXTRAVERSION) zImage $(TOPDIR)/System.map "$(INSTALL_PATH)"
 
+endianswap: endianswap.c
+	$(HOSTCC) $(HOSTCFLAGS) -o $@ $<
+
+%.swap: % endianswap
+	./endianswap < $< > $@
+
 clean:
-	$(RM) Image zImage bootpImage
+	$(RM) Image zImage bootpImage endianswap *.swap
 	@$(MAKE) -C compressed clean
 	@$(MAKE) -C bootp clean
 

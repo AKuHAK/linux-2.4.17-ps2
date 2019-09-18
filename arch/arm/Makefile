@@ -19,6 +19,17 @@ ifeq ($(CONFIG_DEBUG_INFO),y)
 CFLAGS		+=-g
 endif
 
+ifeq ($(CONFIG_KGDB),y)
+CFLAGS			:=$(CFLAGS:-fomit-frame-pointer=)
+CFLAGS		+=-ggdb
+endif
+
+ifeq ($(CONFIG_CPU_BIG_ENDIAN),y)
+CC		+= -mbig-endian
+AS		+= -EB
+LD		+= -EB
+endif
+
 # Select CPU dependent flags.  Note that order of declaration is important;
 # the options further down the list override previous items.
 #
@@ -32,6 +43,7 @@ arch-y				:=
 arch-$(CONFIG_CPU_32v3)		:=-march=armv3
 arch-$(CONFIG_CPU_32v4)		:=-march=armv4
 arch-$(CONFIG_CPU_32v5)		:=-march=armv5
+arch-$(CONFIG_CPU_XSCALE)	:=-march=armv4 -Wa,-mxscale #-march=armv5te
 
 # This selects how we optimise for the processor.
 tune-y				:=
@@ -39,9 +51,11 @@ tune-$(CONFIG_CPU_ARM610)	:=-mtune=arm610
 tune-$(CONFIG_CPU_ARM710)	:=-mtune=arm710
 tune-$(CONFIG_CPU_ARM720T)	:=-mtune=arm7tdmi
 tune-$(CONFIG_CPU_ARM920T)	:=-mtune=arm9tdmi
+tune-$(CONFIG_CPU_ARM922T)	:=-mtune=arm9tdmi
 tune-$(CONFIG_CPU_ARM926T)	:=-mtune=arm9tdmi
 tune-$(CONFIG_CPU_SA110)	:=-mtune=strongarm110
 tune-$(CONFIG_CPU_SA1100)	:=-mtune=strongarm1100
+tune-$(CONFIG_CPU_XSCALE)	:=-mtune=strongarm #-mtune=xscale
 
 CFLAGS		+=$(apcs-y) $(arch-y) $(tune-y) -mshort-load-bytes -msoft-float
 AFLAGS		+=$(apcs-y) $(arch-y) -mno-fpu -msoft-float
@@ -60,7 +74,7 @@ endif
 
 ifeq ($(CONFIG_CPU_32),y)
 PROCESSOR	 = armv
-TEXTADDR	 = 0xC0008000
+TEXTADDR	 = $(CONFIG_TEXTADDR)
 LDSCRIPT	 = arch/arm/vmlinux-armv.lds.in
 endif
 
@@ -113,6 +127,10 @@ endif
 MACHINE		 = sa1100
 endif
 
+ifeq ($(CONFIG_ARCH_PXA),y)
+MACHINE		 = pxa
+endif
+
 ifeq ($(CONFIG_ARCH_L7200),y)
 MACHINE		 = l7200
 endif
@@ -122,7 +140,7 @@ MACHINE		 = integrator
 endif
 
 ifeq ($(CONFIG_ARCH_CAMELOT),y)
-MACHINE          = epxa10db
+MACHINE          = epxa
 endif
 
 ifeq ($(CONFIG_ARCH_CLPS711X),y)
@@ -132,6 +150,22 @@ endif
 
 ifeq ($(CONFIG_ARCH_ANAKIN),y)
 MACHINE		 = anakin
+endif
+
+ifeq ($(CONFIG_ARCH_IOP3XX),y)
+MACHINE		 = iop3xx
+endif
+
+ifeq ($(CONFIG_ARCH_ADIFCC),y)
+MACHINE		= adifcc
+endif
+
+ifeq ($(CONFIG_ARCH_IXP1200),y)
+MACHINE		 = ixp1200
+endif
+
+ifeq ($(CONFIG_ARCH_IXP425), y)
+MACHINE		= ixp425
 endif
 
 export	MACHINE PROCESSOR TEXTADDR GZFLAGS
@@ -200,13 +234,14 @@ arch/arm/vmlinux.lds: $(LDSCRIPT) dummy
 arch/arm/kernel arch/arm/mm arch/arm/lib: dummy
 	$(MAKE) CFLAGS="$(CFLAGS) $(CFLAGS_KERNEL)" $(subst $@, _dir_$@, $@)
 
-bzImage zImage zinstall Image bootpImage install: vmlinux
+bzImage zImage zinstall Image bootpImage install %.swap: vmlinux
 	@$(MAKEBOOT) $@
 
 CLEAN_FILES	+= \
 	arch/arm/vmlinux.lds
 
 MRPROPER_FILES	+= \
+	arch/arm/tools/constants.h* \
 	include/asm-arm/arch \
 	include/asm-arm/proc \
 	include/asm-arm/constants.h* \
@@ -254,7 +289,7 @@ bp:;	@$(MAKEBOOT) bootpImage
 	@( \
 	CFG=$(@:_config=); \
 	if [ -f arch/arm/def-configs/$$CFG ]; then \
-	  [ -f .config ] && $(MV) .config .config.old; \
+	  [ -f .config ] && mv -f .config .config.old; \
 	  cp arch/arm/def-configs/$$CFG .config; \
 	  echo "*** Default configuration for $$CFG installed"; \
 	  echo "*** Next, you may run 'make oldconfig'"; \

@@ -1,5 +1,5 @@
 /*
- * BK Id: SCCS/s.mpc8xx.h 1.15 11/01/01 12:48:53 trini
+ * BK Id: SCCS/s.mpc8xx.h 1.20 11/28/01 10:22:04 paulus
  */
 
 /* This is the single file included by all MPC8xx build options.
@@ -17,78 +17,97 @@
 #ifdef CONFIG_8xx
 
 #ifdef CONFIG_MBX
-#include <asm/mbx.h>
+#include <platforms/mbx.h>
 #endif
 
 #ifdef CONFIG_FADS
-#include <asm/fads.h>
+#include <platforms/fads.h>
 #endif
 
 #ifdef CONFIG_RPXLITE
-#include <asm/rpxlite.h>
+#include <platforms/rpxlite.h>
 #endif
 
 #ifdef CONFIG_BSEIP
-#include <asm/bseip.h>
+#include <platforms/bseip.h>
 #endif
 
 #ifdef CONFIG_RPXCLASSIC
-#include <asm/rpxclassic.h>
+#include <platforms/rpxclassic.h>
 #endif
 
 #if defined(CONFIG_TQM8xxL)
-#include <asm/tqm8xx.h>
+#include <platforms/tqm8xx.h>
 #endif
 
 #if defined(CONFIG_SPD823TS)
-#include <asm/spd8xx.h>
+#include <platforms/spd8xx.h>
 #endif
 
 #if defined(CONFIG_IVMS8) || defined(CONFIG_IVML24)
-#include <asm/ivms8.h>
+#include <platforms/ivms8.h>
 #endif
 
-/* I need this to get pt_regs.......
-*/
-#include <asm/ptrace.h>
+#if defined(CONFIG_HERMES_PRO)
+#include <platforms/hermes.h>
+#endif
 
-/* Currently, all 8xx boards that support a processor to PCI/ISA bridge
- * use the same memory map.
- */
-#if 0
-#if defined(CONFIG_PCI) && defined(PCI_ISA_IO_ADDR)
+#if defined(CONFIG_IP860)
+#include <platforms/ip860.h>
+#endif
+
+#if defined(CONFIG_LWMON)
+#include <platforms/lwmon.h>
+#endif
+
+#if defined(CONFIG_PCU_E)
+#include <platforms/pcu_e.h>
+#endif
+
+#if defined(CONFIG_CCM)
+#include <platforms/ccm.h>
+#endif
+
+#if defined(CONFIG_LANTEC)
+#include <platforms/lantec.h>
+#endif
+
+/* The PCI_ISA_IO_ADDR, PCI_ISA_MEM_ADDR, and PCI_DRAM_OFFSET macros
+ * must be defined in the board-specific header file for targets that
+ * need them.  Default values are defined here for targets that don't need
+ * them.
+  */
+#if defined(CONFIG_PCI)
+#if !defined(_IO_BASE)
 #define	_IO_BASE PCI_ISA_IO_ADDR
+#endif
+#if !defined(_ISA_MEM_BASE)
 #define	_ISA_MEM_BASE PCI_ISA_MEM_ADDR
-#define PCI_DRAM_OFFSET 0x80000000
-#else
-#define _IO_BASE        0
-#define _ISA_MEM_BASE   0
+#endif
+#if !defined(PCI_DRAM_OFFSET)
 #define PCI_DRAM_OFFSET 0
 #endif
-#else
-#if !defined(_IO_BASE)  /* defined in board specific header */
+#else	/* if defined(CONFIG_PCI) */
+#if !defined(_IO_BASE)
 #define _IO_BASE        0
 #endif
+#if !defined(_ISA_MEM_BASE)
 #define _ISA_MEM_BASE   0
+#endif
+#if !defined(PCI_DRAM_OFFSET)
 #define PCI_DRAM_OFFSET 0
 #endif
+#endif	/* if defined(CONFIG_PCI) */
 
 #ifndef __ASSEMBLY__
-extern unsigned long isa_io_base;
-extern unsigned long isa_mem_base;
-extern unsigned long pci_dram_offset;
-
 /* The "residual" data board information structure the boot loader
  * hands to us.
  */
 extern unsigned char __res[];
 
-extern int request_8xxirq(unsigned int irq,
-		       void (*handler)(int, void *, struct pt_regs *),
-		       unsigned long flags, 
-		       const char *device,
-		       void *dev_id);
+#define request_8xxirq request_irq
+
 #endif /* !__ASSEMBLY__ */
 #endif /* CONFIG_8xx */
-#endif
+#endif /* __CONFIG_8xx_DEFS */
 #endif /* __KERNEL__ */

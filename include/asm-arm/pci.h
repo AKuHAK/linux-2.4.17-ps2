@@ -3,6 +3,7 @@
 
 #ifdef __KERNEL__
 
+#include <linux/mm.h>
 #include <asm/arch/hardware.h>
 
 static inline void pcibios_set_master(struct pci_dev *dev)
@@ -64,8 +65,20 @@ pci_map_single(struct pci_dev *hwdev, void *ptr, size_t size, int direction)
 	if (hwdev != NULL)
 		return sa1111_map_single(hwdev, ptr, size, direction);
 #endif
+#if defined(CONFIG_ARCH_IXP425) && (CONFIG_IXP425_SDRAM_SIZE > 64)
+        extern dma_addr_t ixp425_map_single(struct pci_dev *, void *, size_t, int);
+	return ixp425_map_single(hwdev, ptr, size, direction);
+#else
 	consistent_sync(ptr, size, direction);
 	return virt_to_bus(ptr);
+#endif
+}
+
+static inline dma_addr_t
+pci_map_page(struct pci_dev *hwdev, struct page *page, unsigned long offset, size_t size, int dir)
+{
+	void *vaddr = (void*) page_address(page);
+	return pci_map_single(hwdev, vaddr + offset, size, dir);
 }
 
 /* Unmap a single streaming mode DMA translation.  The dma_addr and size
@@ -84,7 +97,18 @@ pci_unmap_single(struct pci_dev *hwdev, dma_addr_t dma_addr, size_t size, int di
 	if (hwdev != NULL)
 		sa1111_unmap_single(hwdev, dma_addr, size, direction);
 #endif
+#if defined(CONFIG_ARCH_IXP425) && (CONFIG_IXP425_SDRAM_SIZE > 64)
+	extern void ixp425_unmap_single(struct pci_dev *, dma_addr_t, size_t, int);
+	ixp425_unmap_single(hwdev, dma_addr, size, direction);
+#endif
 	/* nothing to do */
+}
+
+static inline void
+pci_unmap_page(struct pci_dev *hwdev, dma_addr_t dma_addr, 
+			size_t size, int direction)
+{
+	pci_unmap_single(hwdev, dma_addr, size, direction);
 }
 
 /* Map a set of buffers described by scatterlist in streaming
@@ -137,7 +161,12 @@ pci_unmap_sg(struct pci_dev *hwdev, struct scatterlist *sg, int nents, int direc
 static inline void
 pci_dma_sync_single(struct pci_dev *hwdev, dma_addr_t dma_handle, size_t size, int direction)
 {
+#if defined(CONFIG_ARCH_IXP425) && (CONFIG_IXP425_SDRAM_SIZE > 64)
+	extern void ixp425_sync_single(struct pci_dev *, dma_addr_t, size_t, int);
+	ixp425_sync_single(hwdev, dma_handle, size, direction);
+#else
 	consistent_sync(bus_to_virt(dma_handle), size, direction);
+#endif
 }
 
 /* Make physical memory consistent for a set of streaming

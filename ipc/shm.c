@@ -26,6 +26,8 @@
 
 #include "util.h"
 
+#include <linux/trace.h>
+
 struct shmid_kernel /* private to the kernel */
 {	
 	struct kern_ipc_perm	shm_perm;
@@ -159,6 +161,7 @@ static int shm_mmap(struct file * file, struct vm_area_struct * vma)
 {
 	UPDATE_ATIME(file->f_dentry->d_inode);
 	vma->vm_ops = &shm_vm_ops;
+	vma->vm_flags &= ~VM_IO;
 	shm_inc(file->f_dentry->d_inode->i_ino);
 	return 0;
 }
@@ -252,6 +255,7 @@ asmlinkage long sys_shmget (key_t key, size_t size, int shmflg)
 		shm_unlock(id);
 	}
 	up(&shm_ids.sem);
+	TRACE_IPC(TRACE_EV_IPC_SHM_CREATE, err, shmflg);
 	return err;
 }
 

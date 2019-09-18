@@ -48,6 +48,9 @@
 #include <linux/completion.h>
 #include <linux/seq_file.h>
 #include <asm/checksum.h>
+#ifdef CONFIG_ILATENCY
+#include <linux/ilatency.h>
+#endif
 
 #if defined(CONFIG_PROC_FS)
 #include <linux/proc_fs.h>
@@ -205,6 +208,7 @@ EXPORT_SYMBOL(block_write_full_page);
 EXPORT_SYMBOL(block_read_full_page);
 EXPORT_SYMBOL(block_prepare_write);
 EXPORT_SYMBOL(block_sync_page);
+EXPORT_SYMBOL(generic_cont_expand);
 EXPORT_SYMBOL(cont_prepare_write);
 EXPORT_SYMBOL(generic_commit_write);
 EXPORT_SYMBOL(block_truncate_page);
@@ -407,9 +411,11 @@ EXPORT_SYMBOL(brw_kiovec);
 EXPORT_SYMBOL(kiobuf_wait_for_io);
 
 /* dma handling */
+#ifdef CONFIG_GENERIC_ISA_DMA
 EXPORT_SYMBOL(request_dma);
 EXPORT_SYMBOL(free_dma);
 EXPORT_SYMBOL(dma_spin_lock);
+#endif
 #ifdef HAVE_DISABLE_HLT
 EXPORT_SYMBOL(disable_hlt);
 EXPORT_SYMBOL(enable_hlt);
@@ -436,6 +442,19 @@ EXPORT_SYMBOL(sleep_on_timeout);
 EXPORT_SYMBOL(interruptible_sleep_on);
 EXPORT_SYMBOL(interruptible_sleep_on_timeout);
 EXPORT_SYMBOL(schedule);
+#ifdef CONFIG_ILATENCY
+EXPORT_SYMBOL(intr_sti);
+EXPORT_SYMBOL(intr_cli);
+EXPORT_SYMBOL(intr_restore_flags); 
+#endif
+#ifdef CONFIG_PREEMPT
+EXPORT_SYMBOL(preempt_schedule);
+#endif
+#ifdef CONFIG_PREEMPT_TIMES
+EXPORT_SYMBOL(latency_start);
+EXPORT_SYMBOL(latency_end);
+EXPORT_SYMBOL(latency_check);
+#endif
 EXPORT_SYMBOL(schedule_timeout);
 EXPORT_SYMBOL(jiffies);
 EXPORT_SYMBOL(xtime);

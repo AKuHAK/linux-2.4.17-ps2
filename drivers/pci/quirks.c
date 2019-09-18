@@ -454,6 +454,28 @@ static void __init quirk_amd_ordering(struct pci_dev *dev)
 	}
 }
 
+static void __init quirk_tc86c001(struct pci_dev *dev)
+{
+	unsigned char dat;
+
+	/* distribute interrupt lines */
+	printk(KERN_INFO "PCI: %02x:%02x",
+	       dev->bus->number, dev->devfn);
+	pci_write_config_byte(dev, 0x44, (dev->device & 1) ? 1 : 2);
+	pci_read_config_byte(dev, 0x44, &dat);
+	printk(" INTSEL %02x", dat);
+	printk("\n");
+}
+
+static void __init quirk_tc86c001_sio(struct pci_dev *dev)
+{
+	/* I2C BUS/SIO/GPIO Mode select */
+	/* MODE 5 (SIO:RTS CTS TXD RXD GPIO:GPIO0)select */
+	outl(0x5, pci_resource_start(dev, 2) + 0x20);
+	printk(" TC86C001 mode 0x%08x\n", inl(pci_resource_start(dev, 2) + 0x20));
+}
+
+
 /*
  *  The main table of quirks.
  */
@@ -507,6 +529,12 @@ static struct pci_fixup pci_fixups[] __initdata = {
 
 	{ PCI_FIXUP_FINAL, 	PCI_VENDOR_ID_AMD,	PCI_DEVICE_ID_AMD_VIPER_7410,	quirk_amd_ioapic },
 	{ PCI_FIXUP_FINAL,	PCI_VENDOR_ID_AMD,	PCI_DEVICE_ID_AMD_FE_GATE_700C, quirk_amd_ordering },
+	{ PCI_FIXUP_HEADER, PCI_VENDOR_ID_TOSHIBA_2, PCI_DEVICE_ID_TOSHIBA_TC86C001_IDE, quirk_tc86c001 },
+	{ PCI_FIXUP_HEADER, PCI_VENDOR_ID_TOSHIBA_2, PCI_DEVICE_ID_TOSHIBA_TC86C001_USB, quirk_tc86c001 },
+	{ PCI_FIXUP_HEADER, PCI_VENDOR_ID_TOSHIBA_2, PCI_DEVICE_ID_TOSHIBA_TC86C001_USBD, quirk_tc86c001 },
+	{ PCI_FIXUP_HEADER, PCI_VENDOR_ID_TOSHIBA_2, PCI_DEVICE_ID_TOSHIBA_TC86C001_MISC, quirk_tc86c001 },
+	{ PCI_FIXUP_FINAL,  PCI_VENDOR_ID_TOSHIBA_2, PCI_DEVICE_ID_TOSHIBA_TC86C001_MISC, quirk_tc86c001_sio },
+
 
 	{ 0 }
 };

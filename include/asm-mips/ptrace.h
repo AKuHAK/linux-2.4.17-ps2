@@ -47,6 +47,11 @@ struct pt_regs {
 	unsigned long cp0_badvaddr;
 	unsigned long cp0_status;
 	unsigned long cp0_cause;
+
+#ifdef CONFIG_CPU_LX45XXX
+	unsigned long cp0_estatus;
+	unsigned long cp0_ecause;	
+#endif
 };
 
 #endif /* !(_LANGUAGE_ASSEMBLY) */

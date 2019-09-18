@@ -1,7 +1,7 @@
 /*
  * JFFS2 -- Journalling Flash File System, Version 2.
  *
- * Copyright (C) 2001 Red Hat, Inc.
+ * Copyright (C) 2001, 2002 Red Hat, Inc.
  *
  * Created by David Woodhouse <dwmw2@cambridge.redhat.com>
  *
@@ -31,13 +31,13 @@
  * provisions above, a recipient may use your version of this file
  * under either the RHEPL or the GPL.
  *
- * $Id: compr_zlib.c,v 1.8 2001/09/20 15:28:31 dwmw2 Exp $
+ * $Id: compr_zlib.c,v 1.11 2002/01/11 10:10:49 dwmw2 Exp $
  *
  */
 
-#include "zlib.h"
 
 #ifdef __KERNEL__
+#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/mtd/compatmac.h> /* for min() */
 #include <linux/slab.h>
@@ -54,6 +54,12 @@ static void zfree(void *opaque, void *addr)
 {
 	kfree(addr);
 }
+#ifdef CONFIG_ZLIB /* 2.5 kernels will have a shared zlib, at last. */
+#include <linux/zlib.h>
+#else
+#include "zlib.h"
+#endif
+
 #else
 #define min(x,y) ((x)<(y)?(x):(y))
 #ifndef D1
@@ -63,8 +69,9 @@ static void zfree(void *opaque, void *addr)
 #define KERN_NOTICE
 #define KERN_WARNING
 #define printk printf
+#include <stdint.h>
 #include <stdio.h>
-#include <asm/types.h>
+#include <zlib.h>
 #endif
 
 	/* Plan: call deflate() with avail_in == *sourcelen, 
@@ -77,7 +84,7 @@ static void zfree(void *opaque, void *addr)
 #define STREAM_END_SPACE 12
 
 int zlib_compress(unsigned char *data_in, unsigned char *cpage_out, 
-		   __u32 *sourcelen, __u32 *dstlen)
+		   uint32_t *sourcelen, uint32_t *dstlen)
 {
 	z_stream strm;
 	int ret;
@@ -139,7 +146,7 @@ int zlib_compress(unsigned char *data_in, unsigned char *cpage_out,
 }
 
 void zlib_decompress(unsigned char *data_in, unsigned char *cpage_out,
-		      __u32 srclen, __u32 destlen)
+		      uint32_t srclen, uint32_t destlen)
 {
 	z_stream strm;
 	int ret;

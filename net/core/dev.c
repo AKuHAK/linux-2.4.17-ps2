@@ -103,6 +103,9 @@
 #if defined(CONFIG_NET_RADIO) || defined(CONFIG_NET_PCMCIA_RADIO)
 #include <linux/wireless.h>		/* Note : will define WIRELESS_EXT */
 #endif	/* CONFIG_NET_RADIO || CONFIG_NET_PCMCIA_RADIO */
+
+#include <linux/trace.h>
+
 #ifdef CONFIG_PLIP
 extern int plip_init(void);
 #endif
@@ -1006,6 +1009,8 @@ int dev_queue_xmit(struct sk_buff *skb)
 			return -ENOMEM;
 	}
 
+	TRACE_NETWORK(TRACE_EV_NETWORK_PACKET_OUT, skb->protocol);
+
 	/* Grab device queue */
 	spin_lock_bh(&dev->queue_lock);
 	q = dev->qdisc;
@@ -1033,9 +1038,15 @@ int dev_queue_xmit(struct sk_buff *skb)
 		int cpu = smp_processor_id();
 
 		if (dev->xmit_lock_owner != cpu) {
+                        /*
+                         * The spin_lock effectivly does a preempt lock, but 
+                         * we are about to drop that...
+                         */
+                        preempt_disable();
 			spin_unlock(&dev->queue_lock);
 			spin_lock(&dev->xmit_lock);
 			dev->xmit_lock_owner = cpu;
+                        preempt_enable();
 
 			if (!netif_queue_stopped(dev)) {
 				if (netdev_nit)
@@ -1182,6 +1193,7 @@ static void get_sample_stats(int cpu)
 static void sample_queue(unsigned long dummy)
 {
 /* 10 ms 0r 1ms -- i dont care -- JHS */
+/* run from timer interrupt, preemption is always off here */
 	int next_tick = 1;
 	int cpu = smp_processor_id();
 
@@ -1439,6 +1451,8 @@ static void net_rx_action(struct softirq_action *h)
 		skb_bond(skb);
 
 		rx_dev = skb->dev;
+
+		TRACE_NETWORK(TRACE_EV_NETWORK_PACKET_IN, skb->protocol);
 
 #ifdef CONFIG_NET_FASTROUTE
 		if (skb->pkt_type == PACKET_FASTROUTE) {

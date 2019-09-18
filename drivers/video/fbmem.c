@@ -59,7 +59,11 @@ extern int cyberfb_init(void);
 extern int cyberfb_setup(char*);
 extern int pm2fb_init(void);
 extern int pm2fb_setup(char*);
+extern int pm3fb_init(void);
+extern int pm3fb_setup(char*);
+extern int clps711xfb_init(void);
 extern int cyber2000fb_init(void);
+extern int cyber2000fb_setup(char*);
 extern int retz3fb_init(void);
 extern int retz3fb_setup(char*);
 extern int clgenfb_init(void);
@@ -103,6 +107,7 @@ extern int valkyriefb_setup(char*);
 extern int chips_init(void);
 extern int g364fb_init(void);
 extern int sa1100fb_init(void);
+extern int pxafb_init(void);
 extern int fm2fb_init(void);
 extern int fm2fb_setup(char*);
 extern int q40fb_init(void);
@@ -118,15 +123,27 @@ extern int sisfb_init(void);
 extern int sisfb_setup(char*);
 extern int stifb_init(void);
 extern int stifb_setup(char*);
+extern int tx3912fb_init(void);
 extern int radeonfb_init(void);
 extern int radeonfb_setup(char*);
 extern int e1355fb_init(void);
 extern int e1355fb_setup(char*);
+extern int e1356fb_init(void);
+extern int e1356fb_setup(char*);
+extern int au1100fb_init(void);
+extern int au1100fb_setup(char*);
+extern int it8181fb_init(void);
+extern int it8181fb_setup(char*);
 extern int pvr2fb_init(void);
 extern int pvr2fb_setup(char*);
+extern int mq200fb_init(void);
+extern int mq200fb_setup(char*);
 extern int sstfb_init(void);
 extern int sstfb_setup(char*);
-
+extern int anakinfb_init(void);
+extern int rpxfb_init(void);
+extern int rpxfb_setup(char*);
+  
 static struct {
 	const char *name;
 	int (*init)(void);
@@ -151,14 +168,20 @@ static struct {
 #ifdef CONFIG_FB_AMIGA
 	{ "amifb", amifb_init, amifb_setup },
 #endif
+#ifdef CONFIG_FB_CLPS711X
+	{ "clps711xfb", clps711xfb_init, NULL },
+#endif
 #ifdef CONFIG_FB_CYBER
 	{ "cyber", cyberfb_init, cyberfb_setup },
 #endif
 #ifdef CONFIG_FB_CYBER2000
-	{ "cyber2000", cyber2000fb_init, NULL },
+	{ "cyber2000", cyber2000fb_init, cyber2000fb_setup },
 #endif
 #ifdef CONFIG_FB_PM2
 	{ "pm2fb", pm2fb_init, pm2fb_setup },
+#endif
+#ifdef CONFIG_FB_PM3
+	{ "pm3fb", pm3fb_init, pm3fb_setup },
 #endif
 #ifdef CONFIG_FB_CLGEN
 	{ "clgen", clgenfb_init, clgenfb_setup },
@@ -204,6 +227,9 @@ static struct {
 #endif 
 #ifdef CONFIG_FB_SIS
 	{ "sisfb", sisfb_init, sisfb_setup },
+#endif
+#ifdef CONFIG_FB_RPX
+	{ "rpxfb", rpxfb_init, rpxfb_setup },
 #endif
 
 	/*
@@ -264,14 +290,32 @@ static struct {
 #ifdef CONFIG_FB_SA1100
 	{ "sa1100", sa1100fb_init, NULL },
 #endif
+#ifdef CONFIG_FB_PXA
+	{ "pxa", pxafb_init, NULL },
+#endif
 #ifdef CONFIG_FB_SUN3
 	{ "sun3", sun3fb_init, sun3fb_setup },
 #endif
 #ifdef CONFIG_FB_HIT
 	{ "hitfb", hitfb_init, NULL },
 #endif
+#ifdef CONFIG_FB_ANAKIN
+	{ "anakinfb", anakinfb_init, NULL },
+#endif
+#ifdef CONFIG_FB_TX3912
+	{ "tx3912", tx3912fb_init, NULL },
+#endif
 #ifdef CONFIG_FB_E1355
 	{ "e1355fb", e1355fb_init, e1355fb_setup },
+#endif
+#ifdef CONFIG_FB_E1356
+        { "e1356fb", e1356fb_init, e1356fb_setup },
+#endif
+#ifdef CONFIG_FB_IT8181
+        { "it8181fb", it8181fb_init, it8181fb_setup },
+#endif
+#ifdef CONFIG_FB_MQ200
+	{ "mq200fb", mq200fb_init, mq200fb_setup },
 #endif
 #ifdef CONFIG_FB_PVR2
 	{ "pvr2", pvr2fb_init, pvr2fb_setup },
@@ -279,6 +323,9 @@ static struct {
 #ifdef CONFIG_FB_VOODOO1
 	{ "sst", sstfb_init, sstfb_setup },
 #endif
+#ifdef CONFIG_FB_AU1100
+	{ "au1100fb", au1100fb_init, au1100fb_setup },
+#endif 
 	/*
 	 * Generic drivers that don't use resource management (yet)
 	 */

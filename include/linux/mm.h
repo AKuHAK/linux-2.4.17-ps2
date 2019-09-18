@@ -121,6 +121,9 @@ extern int vm_max_readahead;
  */
 extern pgprot_t protection_map[16];
 
+#define ZPR_MAX_BYTES 256*PAGE_SIZE
+#define ZPR_NORMAL 0 /* perform zap_page_range request in one walk */
+#define ZPR_PARTITION 1 /* partition into a series of smaller operations */
 
 /*
  * These are the virtual MM functions - opening of an area, closing and
@@ -404,7 +407,7 @@ struct file *shmem_file_setup(char * name, loff_t size);
 extern void shmem_lock(struct file * file, int lock);
 extern int shmem_zero_setup(struct vm_area_struct *);
 
-extern void zap_page_range(struct mm_struct *mm, unsigned long address, unsigned long size);
+extern void zap_page_range(struct mm_struct *mm, unsigned long address, unsigned long size, int actions);
 extern int copy_page_range(struct mm_struct *dst, struct mm_struct *src, struct vm_area_struct *vma);
 extern int remap_page_range(unsigned long from, unsigned long to, unsigned long size, pgprot_t prot);
 extern int zeromap_page_range(unsigned long from, unsigned long size, pgprot_t prot);

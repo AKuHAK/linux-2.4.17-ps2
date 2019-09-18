@@ -116,6 +116,10 @@ extern void ipc_init(void);
 extern void time_init(void);
 extern void softirq_init(void);
 
+#ifdef CONFIG_CPU_XSCALE
+extern int xscale_locking_init(void);
+#endif
+
 int rows, cols;
 
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -195,6 +199,7 @@ static struct dev_name_struct {
 	{ "scd",     0x0b00 },
 	{ "mcd",     0x1700 },
 	{ "cdu535",  0x1800 },
+	{ "gdrom",   0xFA00 },
 	{ "sonycd",  0x1800 },
 	{ "aztcd",   0x1d00 },
 	{ "cm206cd", 0x2000 },
@@ -266,6 +271,9 @@ static struct dev_name_struct {
 	{ "ftlc", 0x2c10 },
 	{ "ftld", 0x2c18 },
 	{ "mtdblock", 0x1f00 },
+#if defined(CONFIG_XILINX_SYSACE)
+	{ "xsysacea",0x7d00 },
+#endif
 	{ NULL, 0 }
 };
 
@@ -308,9 +316,12 @@ static int __init root_dev_setup(char *line)
 
 __setup("root=", root_dev_setup);
 
-static int __init checksetup(char *line)
+int __init checksetup(char *line)
 {
 	struct kernel_param *p;
+
+	if (line == NULL)
+		return 0;
 
 	p = &__setup_start;
 	do {
@@ -539,6 +550,9 @@ static void rest_init(void)
  *	Activate the first processor.
  */
 
+#if defined(CONFIG_MIPS) && defined(CONFIG_NEW_TIME_C)
+extern void calibrate_mips_counter(void);
+#endif
 asmlinkage void __init start_kernel(void)
 {
 	char * command_line;
@@ -581,6 +595,9 @@ asmlinkage void __init start_kernel(void)
 	kmem_cache_init();
 	sti();
 	calibrate_delay();
+#if defined(CONFIG_MIPS) && defined(CONFIG_NEW_TIME_C)
+	calibrate_mips_counter();
+#endif
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (initrd_start && !initrd_below_start_ok &&
 			initrd_start < min_low_pfn << PAGE_SHIFT) {
@@ -592,6 +609,14 @@ asmlinkage void __init start_kernel(void)
 	mem_init();
 	kmem_cache_sizes_init();
 	pgtable_cache_init();
+
+	/*
+	 * This is called early on so that all drivers/subsystems
+	 * can do cache/tlb
+	 */
+#ifdef CONFIG_CPU_XSCALE
+	xscale_locking_init();
+#endif
 
 	mempages = num_physpages;
 

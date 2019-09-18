@@ -9,7 +9,7 @@
 
 HEAD		 = head.o
 OBJS		 = misc.o
-CFLAGS		 = $(CPPFLAGS) -O2 -DSTDC_HEADERS $(CFLAGS_PROC) -msoft-float
+# CFLAGS		 = $(CPPFLAGS) -O2 -DSTDC_HEADERS $(CFLAGS_PROC) -msoft-float
 FONTC		 = $(TOPDIR)/drivers/video/font_acorn_8x8.c
 ZLDFLAGS	 = -p -X -T vmlinux.lds
 
@@ -57,12 +57,31 @@ ifeq ($(CONFIG_SA1100_NANOENGINE),y)
 endif
 endif
 
+ifeq ($(CONFIG_CPU_XSCALE),y)
+OBJS		+= head-xscale.o
+endif
+
+ifeq ($(CONFIG_ARCH_CAMELOT),y)
+OBJS		+= head-epxa10db.o
+endif
+
+#
+# Just borrow from SA1* for now
+#
+ifeq ($(CONFIG_ARCH_IXP1200),y)
+OBJS		+= head-sa1100.o
+endif
+
 SEDFLAGS	= s/TEXT_START/$(ZTEXTADDR)/;s/LOAD_ADDR/$(ZRELADDR)/;
 
 ifneq ($(ZBSSADDR),)
 SEDFLAGS	+= s/BSS_START/$(ZBSSADDR)/
 else
 SEDFLAGS	+= s/BSS_START/ALIGN(4)/
+endif
+
+ifeq ($(CONFIG_CPU_BIG_ENDIAN),y)
+OBJS		+= big-endian.o
 endif
 
 LIBGCC		:= $(shell $(CC) $(CFLAGS) --print-libgcc-file-name)

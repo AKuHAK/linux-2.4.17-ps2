@@ -88,8 +88,10 @@ extern int sysctl_userprocess_debug;
 
 #ifdef CONFIG_PPC32
 extern unsigned long zero_paged_on, powersave_nap;
+#ifdef CONFIG_6xx
 int proc_dol2crvec(ctl_table *table, int write, struct file *filp,
 		  void *buffer, size_t *lenp);
+#endif
 #endif
 
 #ifdef CONFIG_BSD_PROCESS_ACCT
@@ -190,8 +192,10 @@ static ctl_table kern_table[] = {
 	 0644, NULL, &proc_dointvec},
 	{KERN_PPC_POWERSAVE_NAP, "powersave-nap", &powersave_nap, sizeof(int),
 	 0644, NULL, &proc_dointvec},
+#ifdef CONFIG_6xx
 	{KERN_PPC_L2CR, "l2cr", NULL, 0,
 	 0644, NULL, &proc_dol2crvec},
+#endif
 #endif
 	{KERN_CTLALTDEL, "ctrl-alt-del", &C_A_D, sizeof(int),
 	 0644, NULL, &proc_dointvec},

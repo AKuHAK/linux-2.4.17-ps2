@@ -23,7 +23,9 @@ obj-y	 += mem.o tty_io.o n_tty.o tty_ioctl.o raw.o pty.o misc.o random.o
 
 export-objs     :=	busmouse.o console.o keyboard.o sysrq.o \
 			misc.o pty.o random.o selection.o serial.o \
-			sonypi.o tty_io.o tty_ioctl.o generic_serial.o
+			sonypi.o tty_io.o tty_ioctl.o generic_serial.o \
+			ibm_ocp_gpio.o au1000_gpio.o lcd.o led.o \
+			h3600_backpaq_fpga.o pfs168_spi.o rw4mouse.o
 
 mod-subdirs	:=	joystick ftape drm pcmcia
 
@@ -54,6 +56,12 @@ ifeq ($(ARCH),s390x)
   SERIAL   =
 endif
 
+ifeq ($(ARCH),xtensa)
+  ifneq ($(CONFIG_PC_KEYB),y)
+    KEYBD    =
+  endif
+endif
+
 ifeq ($(ARCH),m68k)
    ifdef CONFIG_AMIGA
       KEYBD = amikeyb.o
@@ -64,18 +72,50 @@ ifeq ($(ARCH),m68k)
 endif
 
 ifeq ($(ARCH),arm)
-  ifneq ($(CONFIG_PC_KEYMAP),y)
-    KEYMAP   =
+  KEYMAP     :=
+  KEYBD      :=
+  ifeq ($(CONFIG_PC_KEYMAP),y)
+    KEYMAP   := defkeymap.o
   endif
-  ifneq ($(CONFIG_PC_KEYB),y)
-    KEYBD    =
+  ifeq ($(CONFIG_PC_KEYB),y)
+    KEYBD    += pc_keyb.o
+  endif
+  ifeq ($(CONFIG_KMI_KEYB),y)
+    KEYBD    += amba_kmi_keyb.o
+  endif
+  ifeq ($(CONFIG_SA1111),y)
+    KEYBD    += sa1111_keyb.o
+  endif
+  ifeq ($(CONFIG_ARCH_EDB7211),y)
+    KEYBD    += edb7211_keyb.o
+  endif
+  ifeq ($(CONFIG_ARCH_AUTCPU12),y)
+    KEYMAP   := defkeymap.o
+    KEYBD    += clps711x_keyb.o
+  endif
+  ifeq ($(CONFIG_SA1100_GRAPHICSCLIENT),y)
+    KEYMAP    = gckeymap.o
+    KEYBD    += gc_keyb.o
+  endif
+  ifeq ($(CONFIG_SA1100_CERF_CPLD),y)
+    KEYBD    += cerf_keyb.o
+  endif
+  ifeq ($(CONFIG_SA1100_H3XXX),y)
+    KEYBD    += h3600_keyboard.o
   endif
 endif
 
 ifeq ($(ARCH),sh)
+  ifneq ($(CONFIG_PC_KEYB),y)
   KEYMAP   =
   KEYBD    =
   CONSOLE  =
+  endif
+  ifeq ($(CONFIG_SH_7751_SOLUTION_ENGINE),y)
+  KEYMAP   = defkeymap.o
+  KEYBD    = pc_keyb.o
+  CONSOLE  = console.o
+  endif
   ifeq ($(CONFIG_SH_HP600),y)
   KEYMAP   = defkeymap.o
   KEYBD    = scan_keyb.o hp600_keyb.o
@@ -95,7 +135,7 @@ ifeq ($(ARCH),sh)
   endif
   ifeq ($(CONFIG_SH_DREAMCAST),y)
   KEYMAP   = defkeymap.o
-  KEYBD    =
+  KEYBD    = dc_keyb.o
   CONSOLE  = console.o
   endif
 endif
@@ -111,8 +151,20 @@ ifeq ($(CONFIG_BAGET_MIPS),y)
   SERIAL   =
 endif
 
+ifeq ($(CONFIG_MIPS_LXPB20K),y)
+  SERIAL   =
+endif
+
 ifeq ($(CONFIG_NINO),y)
   SERIAL   =
+endif
+
+ifeq ($(CONFIG_VRC4173),y)
+  ifeq ($(CONFIG_VRC4173_PS2U),y)
+    KEYBD    = vrc4173-ps2u.o
+  else
+    KEYBD    =
+  endif
 endif
 
 ifneq ($(CONFIG_SUN_SERIAL),)
@@ -124,12 +176,17 @@ ifeq ($(CONFIG_QTRONIX_KEYBOARD),y)
   KEYMAP   = qtronixmap.o
 endif
 
+ifeq ($(CONFIG_DUMMY_KEYB),y)
+  KEYBD = dummy_keyb.o
+endif
+
 obj-$(CONFIG_VT) += vt.o vc_screen.o consolemap.o consolemap_deftbl.o $(CONSOLE) selection.o
 obj-$(CONFIG_SERIAL) += $(SERIAL)
 obj-$(CONFIG_SERIAL_ACPI) += acpi_serial.o
-obj-$(CONFIG_SERIAL_21285) += serial_21285.o
-obj-$(CONFIG_SERIAL_SA1100) += serial_sa1100.o
-obj-$(CONFIG_SERIAL_AMBA) += serial_amba.o
+obj-$(CONFIG_TS_AU1000_ADS7846) += au1000_ts.o
+obj-$(CONFIG_TOUCHSCREEN_ANAKIN) += anakin_ts.o
+obj-$(CONFIG_VRC4173) += vrc4173-bcu.o
+obj-$(CONFIG_VRC4173_PIU) += vrc4173-piu.o
 
 ifndef CONFIG_SUN_KEYBOARD
   obj-$(CONFIG_VT) += keyboard.o $(KEYMAP) $(KEYBD)
@@ -147,6 +204,7 @@ obj-$(CONFIG_DIGIEPCA) += epca.o
 obj-$(CONFIG_CYCLADES) += cyclades.o
 obj-$(CONFIG_STALLION) += stallion.o
 obj-$(CONFIG_ISTALLION) += istallion.o
+obj-$(CONFIG_SIBYTE_SB1250_DUART) += sb1250_duart.o
 obj-$(CONFIG_COMPUTONE) += ip2.o ip2main.o
 obj-$(CONFIG_RISCOM8) += riscom8.o
 obj-$(CONFIG_ISI) += isicom.o
@@ -164,6 +222,10 @@ obj-$(CONFIG_MVME147_SCC) += generic_serial.o vme_scc.o
 obj-$(CONFIG_MVME162_SCC) += generic_serial.o vme_scc.o
 obj-$(CONFIG_BVME6000_SCC) += generic_serial.o vme_scc.o
 obj-$(CONFIG_SERIAL_TX3912) += generic_serial.o serial_tx3912.o
+obj-$(CONFIG_TX4925_SIO) += generic_serial.o tx4925_sio.o
+obj-$(CONFIG_TX4927_SIO) += generic_serial.o tx4927_sio.o
+obj-$(CONFIG_TXX927_SERIAL) += serial_txx927.o
+obj-$(CONFIG_GT64260_MPSC) += gt64260_mpsc.o
 
 subdir-$(CONFIG_RIO) += rio
 subdir-$(CONFIG_INPUT) += joystick
@@ -175,6 +237,9 @@ obj-$(CONFIG_PRINTER) += lp.o
 ifeq ($(CONFIG_INPUT),y)
 obj-y += joystick/js.o
 endif
+
+obj-$(CONFIG_MAPLE_KEYBOARD) += maple_keyb.o
+obj-$(CONFIG_MAPLE_MOUSE) += maplemouse.o
 
 obj-$(CONFIG_BUSMOUSE) += busmouse.o
 obj-$(CONFIG_DTLK) += dtlk.o
@@ -188,14 +253,35 @@ obj-$(CONFIG_ATARIMOUSE) += atarimouse.o
 obj-$(CONFIG_ADBMOUSE) += adbmouse.o
 obj-$(CONFIG_PC110_PAD) += pc110pad.o
 obj-$(CONFIG_RTC) += rtc.o
+obj-$(CONFIG_RTC_DS1742) += rtc_ds1742.o
 obj-$(CONFIG_EFI_RTC) += efirtc.o
-ifeq ($(CONFIG_PPC),)
+obj-$(CONFIG_MIPS_RTC) += mips_rtc.o
+obj-$(CONFIG_SA1100_RTC) += sa1100-rtc.o
+ifeq ($(CONFIG_ALL_PPC),)
   obj-$(CONFIG_NVRAM) += nvram.o
 endif
 obj-$(CONFIG_TOSHIBA) += toshiba.o
 obj-$(CONFIG_I8K) += i8k.o
 obj-$(CONFIG_DS1620) += ds1620.o
 obj-$(CONFIG_INTEL_RNG) += i810_rng.o
+obj-$(CONFIG_ITE_GPIO) += ite_gpio.o
+obj-$(CONFIG_AU1000_GPIO) += au1000_gpio.o
+obj-$(CONFIG_AU1000_USB_TTY) += au1000_usbtty.o
+obj-$(CONFIG_AU1000_USB_RAW) += au1000_usbraw.o
+obj-$(CONFIG_IBM_OCP_GPIO) += ibm_ocp_gpio.o
+obj-$(CONFIG_PPC405_GPIO) += ppc405_gpio.o
+obj-$(CONFIG_RWMOUSE) += rw4mouse.o
+mod-subdirs     +=	xilinx_gpio
+subdir-$(CONFIG_XILINX_GPIO) += xilinx_gpio
+obj-$(CONFIG_XILINX_GPIO) += xilinx_gpio/xilinx_gpio.o
+ifeq ($(CONFIG_VIRTEX_II_PRO),y)
+  ifeq ($(CONFIG_VT),y)
+    ifeq ($(CONFIG_PC_KEYBOARD),y)
+      subdir-$(CONFIG_VT) += xilinx_keyb
+      obj-$(CONFIG_VT) += xilinx_keyb/xilinx_keyb.o
+    endif
+  endif
+endif
 
 obj-$(CONFIG_QIC02_TAPE) += tpqic02.o
 
@@ -233,11 +319,35 @@ obj-$(CONFIG_I810_TCO) += i810-tco.o
 obj-$(CONFIG_MACHZ_WDT) += machzwd.o
 obj-$(CONFIG_SH_WDT) += shwdt.o
 obj-$(CONFIG_EUROTECH_WDT) += eurotechwdt.o
+obj-$(CONFIG_SA1100_WATCHDOG) += sa1100_wdt.o
 obj-$(CONFIG_SOFT_WATCHDOG) += softdog.o
+obj-$(CONFIG_PPC405_WDT)  += ppc405_wdt.o
+obj-$(CONFIG_VR41XX_WDT) += vr41xxwdt.o
+obj-$(CONFIG_CPCI735_WATCHDOG) += wdt_cpci735.o
+
+obj-$(CONFIG_LINUX_LED) += led.o
+obj-$(CONFIG_CPCI735_LED) += led_cpci735.o
 
 subdir-$(CONFIG_MWAVE) += mwave
 ifeq ($(CONFIG_MWAVE),y)
   obj-y += mwave/mwave.o
+endif
+
+obj-$(CONFIG_TOUCHSCREEN_H3600) += h3600_ts.o
+obj-$(CONFIG_H3600_STOWAWAY) += h3600_stowaway.o
+obj-$(CONFIG_H3600_BACKPAQ_FPGA) += h3600_backpaq_fpga.o
+obj-$(CONFIG_H3600_BACKPAQ_ACCEL) += h3600_backpaq_accel.o
+obj-$(CONFIG_H3600_BACKPAQ_GASGAUGE) += h3600_backpaq_gasgauge.o
+obj-$(CONFIG_SA1100_LIRC) += lirc_sir.o
+
+obj-$(CONFIG_PFS168_SPI) += pfs168_spi.o
+obj-$(CONFIG_PFS168_SPI) += pfs168_spi_mux.o
+obj-$(CONFIG_PFS168_MISC) += pfs168_misc.o
+
+ifeq ($(CONFIG_ARCH_ACORN),y)
+mod-subdirs	+= ../acorn/char
+subdir-y	+= ../acorn/char
+obj-y		+= ../acorn/char/acorn-char.o
 endif
 
 include $(TOPDIR)/Rules.make

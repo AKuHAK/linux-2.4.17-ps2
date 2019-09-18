@@ -1,7 +1,7 @@
 /*
  * JFFS2 -- Journalling Flash File System, Version 2.
  *
- * Copyright (C) 2001 Red Hat, Inc.
+ * Copyright (C) 2001, 2002 Red Hat, Inc.
  *
  * Created by David Woodhouse <dwmw2@cambridge.redhat.com>
  *
@@ -31,12 +31,11 @@
  * provisions above, a recipient may use your version of this file
  * under either the RHEPL or the GPL.
  *
- * $Id: nodelist.c,v 1.30 2001/11/14 10:35:21 dwmw2 Exp $
+ * $Id: nodelist.c,v 1.36 2002/01/09 16:52:59 dwmw2 Exp $
  *
  */
 
 #include <linux/kernel.h>
-#include <linux/jffs2.h>
 #include <linux/fs.h>
 #include <linux/mtd/mtd.h>
 #include "nodelist.h"
@@ -89,12 +88,36 @@ void jffs2_add_tn_to_list(struct jffs2_tmp_dnode_info *tn, struct jffs2_tmp_dnod
         *prev = tn;
 }
 
+static void jffs2_free_tmp_dnode_info_list(struct jffs2_tmp_dnode_info *tn)
+{
+	struct jffs2_tmp_dnode_info *next;
+
+	while (tn) {
+		next = tn;
+		tn = tn->next;
+		jffs2_free_full_dnode(next->fn);
+		jffs2_free_tmp_dnode_info(next);
+	}
+}
+
+static void jffs2_free_full_dirent_list(struct jffs2_full_dirent *fd)
+{
+	struct jffs2_full_dirent *next;
+
+	while (fd) {
+		next = fd->next;
+		jffs2_free_full_dirent(fd);
+		fd = next;
+	}
+}
+
+
 /* Get tmp_dnode_info and full_dirent for all non-obsolete nodes associated
    with this ino, returning the former in order of version */
 
 int jffs2_get_inode_nodes(struct jffs2_sb_info *c, ino_t ino, struct jffs2_inode_info *f,
 			  struct jffs2_tmp_dnode_info **tnp, struct jffs2_full_dirent **fdp,
-			  __u32 *highest_version)
+			  uint32_t *highest_version)
 {
 	struct jffs2_raw_node_ref *ref = f->inocache->nodes;
 	struct jffs2_tmp_dnode_info *tn, *ret_tn = NULL;
@@ -115,7 +138,7 @@ int jffs2_get_inode_nodes(struct jffs2_sb_info *c, ino_t ino, struct jffs2_inode
 			D1(printk(KERN_DEBUG "node at 0x%08x is obsoleted. Ignoring.\n", ref->flash_offset &~3));
 			continue;
 		}
-		err = c->mtd->read(c->mtd, (ref->flash_offset & ~3), sizeof(node), &retlen, (void *)&node);
+		err = jffs2_flash_read(c, (ref->flash_offset & ~3), min(ref->totlen, sizeof(node)), &retlen, (void *)&node);
 		if (err) {
 			printk(KERN_WARNING "error %d reading node at 0x%08x in get_inode_nodes()\n", err, (ref->flash_offset) & ~3);
 			goto free_out;
@@ -123,7 +146,7 @@ int jffs2_get_inode_nodes(struct jffs2_sb_info *c, ino_t ino, struct jffs2_inode
 			
 
 			/* Check we've managed to read at least the common node header */
-		if (retlen < sizeof(node.u)) {
+		if (retlen < min(ref->totlen, sizeof(node.u))) {
 			printk(KERN_WARNING "short read in get_inode_nodes()\n");
 			err = -EIO;
 			goto free_out;
@@ -157,7 +180,7 @@ int jffs2_get_inode_nodes(struct jffs2_sb_info *c, ino_t ino, struct jffs2_inode
 				   dirent we've already read from the flash
 				*/
 			if (retlen > sizeof(struct jffs2_raw_dirent))
-				memcpy(&fd->name[0], &node.d.name[0], min((__u32)node.d.nsize, (retlen-sizeof(struct jffs2_raw_dirent))));
+				memcpy(&fd->name[0], &node.d.name[0], min((uint32_t)node.d.nsize, (retlen-sizeof(struct jffs2_raw_dirent))));
 				
 				/* Do we need to copy any more of the name directly
 				   from the flash?
@@ -165,7 +188,7 @@ int jffs2_get_inode_nodes(struct jffs2_sb_info *c, ino_t ino, struct jffs2_inode
 			if (node.d.nsize + sizeof(struct jffs2_raw_dirent) > retlen) {
 				int already = retlen - sizeof(struct jffs2_raw_dirent);
 					
-				err = c->mtd->read(c->mtd, (ref->flash_offset & ~3) + retlen, 
+				err = jffs2_flash_read(c, (ref->flash_offset & ~3) + retlen, 
 						   node.d.nsize - already, &retlen, &fd->name[already]);
 				if (!err && retlen != node.d.nsize - already)
 					err = -EIO;

@@ -163,6 +163,9 @@ int access_process_vm(struct task_struct *tsk, unsigned long addr, void *buf, in
 		maddr = kmap(page);
 		if (write) {
 			memcpy(maddr + offset, buf, bytes);
+#ifdef CONFIG_SUPERH
+			flush_dcache_page(page);
+#endif
 			flush_page_to_ram(page);
 			flush_icache_page(vma, page);
 		} else {
@@ -173,6 +176,7 @@ int access_process_vm(struct task_struct *tsk, unsigned long addr, void *buf, in
 		put_page(page);
 		len -= bytes;
 		buf += bytes;
+		addr += bytes;
 	}
 	up_read(&mm->mmap_sem);
 	mmput(mm);

@@ -48,6 +48,8 @@
 #include <linux/module.h>
 #include <linux/completion.h>
 
+#include <linux/trace.h>
+
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/bitops.h>
@@ -146,6 +148,7 @@ void __wait_on_buffer(struct buffer_head * bh)
 	get_bh(bh);
 	add_wait_queue(&bh->b_wait, &wait);
 	do {
+		TRACE_FILE_SYSTEM(TRACE_EV_FILE_SYSTEM_BUF_WAIT_START, 0, 0, NULL);
 		run_task_queue(&tq_disk);
 		set_task_state(tsk, TASK_UNINTERRUPTIBLE);
 		if (!buffer_locked(bh))
@@ -153,6 +156,7 @@ void __wait_on_buffer(struct buffer_head * bh)
 		schedule();
 	} while (buffer_locked(bh));
 	tsk->state = TASK_RUNNING;
+	TRACE_FILE_SYSTEM(TRACE_EV_FILE_SYSTEM_BUF_WAIT_END, 0, 0, NULL);
 	remove_wait_queue(&bh->b_wait, &wait);
 	put_bh(bh);
 }
@@ -249,6 +253,7 @@ static int wait_for_buffers(kdev_t dev, int index, int refile)
 	struct buffer_head * next;
 	int nr;
 
+ repeat:
 	next = lru_list[index];
 	nr = nr_buffers_type[index];
 	while (next && --nr >= 0) {
@@ -262,6 +267,11 @@ static int wait_for_buffers(kdev_t dev, int index, int refile)
 		}
 		if (dev && bh->b_dev != dev)
 			continue;
+		if (conditional_schedule_needed()) {
+			debug_lock_break(2);
+			break_spin_lock_and_resched(&lru_list_lock);
+			goto repeat;
+		}
 
 		get_bh(bh);
 		spin_unlock(&lru_list_lock);
@@ -672,6 +682,13 @@ void invalidate_bdev(struct block_device *bdev, int destroy_dirty_buffers)
 			/* Not hashed? */
 			if (!bh->b_pprev)
 				continue;
+			if (conditional_schedule_needed()) {
+				debug_lock_break(2); /* bkl is held too */
+				get_bh(bh);
+				break_spin_lock_and_resched(&lru_list_lock);
+				put_bh(bh);
+				slept = 1;
+			}
 			if (buffer_locked(bh)) {
 				get_bh(bh);
 				spin_unlock(&lru_list_lock);
@@ -685,14 +702,11 @@ void invalidate_bdev(struct block_device *bdev, int destroy_dirty_buffers)
 			/* All buffers in the lru lists are mapped */
 			if (!buffer_mapped(bh))
 				BUG();
-			if (buffer_dirty(bh))
-				printk("invalidate: dirty buffer\n");
 			if (!atomic_read(&bh->b_count)) {
 				if (destroy_dirty_buffers || !buffer_dirty(bh)) {
 					remove_inode_queue(bh);
 				}
-			} else
-				printk("invalidate: busy buffer\n");
+			}
 
 			write_unlock(&hash_table_lock);
 			if (slept)
@@ -823,6 +837,8 @@ int fsync_inode_buffers(struct inode *inode)
 	struct buffer_head *bh;
 	struct inode tmp;
 	int err = 0, err2;
+
+	DEFINE_LOCK_COUNT();
 	
 	INIT_LIST_HEAD(&tmp.i_dirty_buffers);
 	
@@ -843,6 +859,12 @@ int fsync_inode_buffers(struct inode *inode)
 				brelse(bh);
 				spin_lock(&lru_list_lock);
 			}
+		}
+		/* haven't hit this code path ... */
+		debug_lock_break(551);
+		if (TEST_LOCK_COUNT(32)) {
+			RESET_LOCK_COUNT();
+			break_spin_lock(&lru_list_lock);
 		}
 	}
 
@@ -873,6 +895,7 @@ int fsync_inode_data_buffers(struct inode *inode)
 	struct inode tmp;
 	int err = 0, err2;
 	
+	DEFINE_LOCK_COUNT();
 	INIT_LIST_HEAD(&tmp.i_dirty_data_buffers);
 	
 	spin_lock(&lru_list_lock);
@@ -904,9 +927,14 @@ int fsync_inode_data_buffers(struct inode *inode)
 		if (!buffer_uptodate(bh))
 			err = -EIO;
 		brelse(bh);
+		debug_lock_break(1);
+		if (TEST_LOCK_COUNT(32)) {
+			RESET_LOCK_COUNT();
+			conditional_schedule();
+		}
 		spin_lock(&lru_list_lock);
 	}
-	
+
 	spin_unlock(&lru_list_lock);
 	err2 = osync_inode_data_buffers(inode);
 
@@ -933,6 +961,8 @@ int osync_inode_buffers(struct inode *inode)
 	struct list_head *list;
 	int err = 0;
 
+	DEFINE_LOCK_COUNT();
+
 	spin_lock(&lru_list_lock);
 	
  repeat:
@@ -940,6 +970,17 @@ int osync_inode_buffers(struct inode *inode)
 	for (list = inode->i_dirty_buffers.prev; 
 	     bh = BH_ENTRY(list), list != &inode->i_dirty_buffers;
 	     list = bh->b_inode_buffers.prev) {
+		/* untested code path ... */
+		debug_lock_break(551);
+ 
+		if (TEST_LOCK_COUNT(32)) {
+			RESET_LOCK_COUNT();
+			if (conditional_schedule_needed()) {
+				break_spin_lock(&lru_list_lock);
+				goto repeat;
+			}
+		}
+ 
 		if (buffer_locked(bh)) {
 			get_bh(bh);
 			spin_unlock(&lru_list_lock);
@@ -1758,6 +1799,52 @@ int block_read_full_page(struct page *page, get_block_t *get_block)
 		submit_bh(READ, arr[i]);
 
 	return 0;
+}
+
+/* utility function for filesystems that need to do work on expanding
+ * truncates.  Uses prepare/commit_write to allow the filesystem to
+ * deal with the hole.  
+ */
+int generic_cont_expand(struct inode *inode, loff_t size)
+{
+	struct address_space *mapping = inode->i_mapping;
+	struct page *page;
+	unsigned long index, offset, limit;
+	int err;
+
+	err = -EFBIG;
+        limit = current->rlim[RLIMIT_FSIZE].rlim_cur;
+	if (limit != RLIM_INFINITY && size > (loff_t)limit) {
+		send_sig(SIGXFSZ, current, 0);
+		goto out;
+	}
+	if (size > inode->i_sb->s_maxbytes)
+		goto out;
+
+	offset = (size & (PAGE_CACHE_SIZE-1)); /* Within page */
+
+	/* ugh.  in prepare/commit_write, if from==to==start of block, we 
+	** skip the prepare.  make sure we never send an offset for the start
+	** of a block
+	*/
+	if ((offset & (inode->i_sb->s_blocksize - 1)) == 0) {
+		offset++;
+	}
+	index = size >> PAGE_CACHE_SHIFT;
+	err = -ENOMEM;
+	page = grab_cache_page(mapping, index);
+	if (!page)
+		goto out;
+	err = mapping->a_ops->prepare_write(NULL, page, offset, offset);
+	if (!err) {
+		err = mapping->a_ops->commit_write(NULL, page, offset, offset);
+	}
+	UnlockPage(page);
+	page_cache_release(page);
+	if (err > 0)
+		err = 0;
+out:
+	return err;
 }
 
 /*

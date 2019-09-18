@@ -222,7 +222,7 @@ static inline void clear_mapping(unsigned long virt)
 static void __init create_mapping(struct map_desc *md)
 {
 	unsigned long virt, length;
-	int prot_sect, prot_pte;
+	unsigned int prot_sect, prot_pte;
 	long off;
 
 	prot_pte = L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY |
@@ -372,7 +372,7 @@ void __init memtable_init(struct meminfo *mi)
 	init_maps->prot_read  = 0;
 	init_maps->prot_write = 0;
 	init_maps->cacheable  = 1;
-	init_maps->bufferable = 0;
+	init_maps->bufferable = 1;
 
 	create_mapping(init_maps);
 
@@ -388,6 +388,11 @@ void __init iotable_init(struct map_desc *io_desc)
 
 	for (i = 0; io_desc[i].last == 0; i++)
 		create_mapping(io_desc + i);
+
+#ifdef CONFIG_ARCH_IXP1200
+	*(volatile unsigned long*)SRAM_CSR_BASE = 0x4200;
+	memset((unsigned long *)SRAM_BASE, 0, SRAM_SIZE);
+#endif
 }
 
 static inline void free_memmap(int node, unsigned long start, unsigned long end)

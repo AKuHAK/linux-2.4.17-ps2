@@ -30,18 +30,29 @@
 #  define DPRINTK(fmt, args...)
 #endif
 
-
+#include <linux/config.h>
 #include <linux/init.h>
+#include <linux/module.h>
 #include <linux/pm.h>
 #include <linux/slab.h>
 #include <linux/sysctl.h>
-#include <linux/acpi.h>
 
 #include <asm/hardware.h>
 #include <asm/memory.h>
 #include <asm/system.h>
 
 #include "sleep.h"
+
+/*
+ * ARGH!  Stupid ACPI people.  They should define this in linux/sysctl.h,
+ * NOT linux/acpi.h.
+ *
+ * This means our interface here won't survive long - it needs a new
+ * interface.  Quick hack to get this working - use sysctl id 9999.
+ */
+#warning ACPI broke the kernel, this interface needs to be fixed up.
+#define CTL_ACPI 9999
+#define ACPI_S1_SLP_TYP 19
 
 extern void sa1100_cpu_suspend(void);
 extern void sa1100_cpu_resume(void);
@@ -52,7 +63,7 @@ extern unsigned long  sleep_save_p;	/* physical address */
 #define SAVE(x)		sleep_save[SLEEP_SAVE_##x] = x
 #define RESTORE(x)	x = sleep_save[SLEEP_SAVE_##x]
 
-int pm_do_suspend(void)
+int sa1110_suspend(void)
 {
 	int retval;
 
@@ -150,17 +161,80 @@ int pm_do_suspend(void)
 
 	kfree (sleep_save);
 
-	retval = pm_send_all(PM_RESUME, (void *)0);
-	if (retval)
-		return retval;
+#ifdef CONFIG_CPU_FREQ
+	cpufreq_restore();
+#endif
 
+	return pm_send_all(PM_RESUME, (void *)0);
+}
+
+
+
+static char pm_helper_path[128] = "/sbin/pm_helper";
+
+static void
+run_sbin_pm_helper( pm_request_t action )
+{
+	int i;
+	char *argv[3], *envp[8];
+
+	if (!pm_helper_path[0])
+		return;
+
+	if ( action != PM_SUSPEND && action != PM_RESUME )
+		return;
+
+	i = 0;
+	argv[i++] = pm_helper_path;
+	argv[i++] = (action == PM_RESUME ? "resume" : "suspend");
+	argv[i] = 0;
+
+        printk(KERN_CRIT __FUNCTION__ ":%d pm_helper_path=%s\n", __LINE__, pm_helper_path);
+	i = 0;
+	/* minimal command environment */
+	envp[i++] = "HOME=/";
+	envp[i++] = "PATH=/sbin:/bin:/usr/sbin:/usr/bin";
+	envp[i] = 0;
+
+	/* other stuff we want to pass to /sbin/hotplug */
+	call_usermodehelper (argv [0], argv, envp);
+}
+
+int pm_do_suspend(void)
+{
+	DPRINTK("suggest\n");
+	run_sbin_pm_helper(PM_SUSPEND);
 	return 0;
 }
 
+int pm_force_suspend(void)
+{
+	int retval;
+	
+	DPRINTK("yea\n");
+	
+	pm_current_state = PM_STATE_REQUESTING_SUSPEND;
+	retval = pm_send_all(PM_SUSPEND, (void *)2);
+	if (retval) {
+		pm_current_state = PM_STATE_NORMAL;
+		return retval;
+	}
+
+	pm_current_state = PM_STATE_SUSPENDING;
+	retval = sa1110_suspend();
+
+	pm_current_state = PM_STATE_RESUMING;
+	retval = pm_send_all(PM_RESUME, (void *)0);
+	run_sbin_pm_helper(PM_RESUME);
+
+	pm_current_state = PM_STATE_NORMAL;
+	return retval;
+}
 
 static struct ctl_table pm_table[] =
 {
-	{ACPI_S1_SLP_TYP, "suspend", NULL, 0, 0600, NULL, (proc_handler *)&pm_do_suspend},
+	{ACPI_S1_SLP_TYP, "suspend", NULL, 0, 0644, NULL, (proc_handler *)&pm_force_suspend},
+	{2, "helper", pm_helper_path, sizeof(pm_helper_path), 0644, NULL, (proc_handler *)&proc_dostring},
 	{0}
 };
 
@@ -181,3 +255,4 @@ static int __init pm_init(void)
 
 __initcall(pm_init);
 
+EXPORT_SYMBOL(pm_do_suspend);

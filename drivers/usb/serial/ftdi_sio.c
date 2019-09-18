@@ -123,7 +123,7 @@
 #define DRIVER_AUTHOR "Greg Kroah-Hartman <greg@kroah.com>, Bill Ryder <bryder@sgi.com>"
 #define DRIVER_DESC "USB FTDI RS232 Converters Driver"
 
-static __devinitdata struct usb_device_id id_table_sio [] = {
+static struct usb_device_id id_table_sio [] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_SIO_PID) },
 	{ }						/* Terminating entry */
 };
@@ -136,7 +136,7 @@ static __devinitdata struct usb_device_id id_table_sio [] = {
   */
 
    
-static __devinitdata struct usb_device_id id_table_8U232AM [] = {
+static struct usb_device_id id_table_8U232AM [] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_8U232AM_PID) },
 	{ }						/* Terminating entry */
 };

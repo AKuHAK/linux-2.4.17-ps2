@@ -1256,6 +1256,16 @@ asmlinkage long sys_prctl(int option, unsigned long arg2, unsigned long arg3,
 			}
 			current->keep_capabilities = arg2;
 			break;
+
+#ifdef SET_FP_EXC_MODE
+		case PR_SET_FP_EXC:
+			error = SET_FP_EXC_MODE(current, arg2);
+			break;
+		case PR_GET_FP_EXC:
+			error = GET_FP_EXC_MODE(current);
+			break;
+#endif
+
 		default:
 			error = -EINVAL;
 			break;

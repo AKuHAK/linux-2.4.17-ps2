@@ -29,6 +29,8 @@
 #include <linux/smp.h>
 #include <linux/init.h>
 
+#include <linux/trace.h>
+
 #include <asm/irq.h>
 #include <asm/system.h>
 #include <asm/mach/irq.h>
@@ -101,6 +103,11 @@ int get_irq_list(char *buf)
 	struct irqaction * action;
 	char *p = buf;
 
+	p += sprintf(p, "           ");
+	for (i =0 ; i < smp_num_cpus; i++)
+		p += sprintf(p, "CPU%d       ", i);
+	*p++ = '\n';
+
 	for (i = 0 ; i < NR_IRQS ; i++) {
 	    	action = irq_desc[i].action;
 		if (!action)
@@ -155,6 +162,13 @@ asmlinkage void do_IRQ(int irq, struct pt_regs * regs)
 	struct irqdesc * desc;
 	struct irqaction * action;
 	int cpu;
+#ifdef CONFIG_ILATENCY
+        {
+                extern void interrupt_overhead_start(void);
+
+                interrupt_overhead_start();
+        }
+#endif /* CONFIG_ILATENCY */
 
 	irq = fixup_irq(irq);
 
@@ -165,8 +179,14 @@ asmlinkage void do_IRQ(int irq, struct pt_regs * regs)
 	if (irq >= NR_IRQS)
 		goto bad_irq;
 
+	/* this is called recursively in some cases, so... */
+	if (!in_irq())
+		preempt_lock_start(-99);
+
 	desc = irq_desc + irq;
 
+	TRACE_IRQ_ENTRY(irq, !(user_mode(regs)));
+	
 	spin_lock(&irq_controller_lock);
 	desc->mask_ack(irq);
 	spin_unlock(&irq_controller_lock);
@@ -191,6 +211,13 @@ asmlinkage void do_IRQ(int irq, struct pt_regs * regs)
 		if (!(action->flags & SA_INTERRUPT))
 			__sti();
 
+#ifdef CONFIG_ILATENCY
+         {
+                extern void interrupt_overhead_stop(void);
+
+                interrupt_overhead_stop();
+        }
+#endif /* CONFIG_ILATENCY */
 		do {
 			status |= action->flags;
 			action->handler(irq, action->dev_id, regs);
@@ -215,9 +242,19 @@ asmlinkage void do_IRQ(int irq, struct pt_regs * regs)
 	check_irq_lock(desc, irq, regs);
 
 	irq_exit(cpu, irq);
+	TRACE_IRQ_EXIT();
+
+	if (!in_irq())
+		preempt_lock_stop();
 
 	if (softirq_pending(cpu))
 		do_softirq();
+#ifdef CONFIG_ILATENCY
+	/*
+	 * until entry.S gets this call do it here.
+	 */
+	intr_ret_from_exception();
+#endif /* CONFIG_ILATENCY */
 	return;
 
 bad_irq:

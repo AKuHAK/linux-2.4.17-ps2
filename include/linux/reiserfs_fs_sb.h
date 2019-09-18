@@ -201,7 +201,7 @@ struct reiserfs_journal_cnode {
   struct buffer_head *bh ;		 /* real buffer head */
   kdev_t dev ;				 /* dev of real buffer head */
   unsigned long blocknr ;		 /* block number of real buffer head, == 0 when buffer on disk */		 
-  int state ;
+  long state ;
   struct reiserfs_journal_list *jlist ;  /* journal list this cnode lives in */
   struct reiserfs_journal_cnode *next ;  /* next in transaction list */
   struct reiserfs_journal_cnode *prev ;  /* prev in transaction list */
@@ -264,7 +264,7 @@ struct reiserfs_journal {
   struct reiserfs_journal_cnode *j_last ; /* newest journal block */
   struct reiserfs_journal_cnode *j_first ; /*  oldest journal block.  start here for traverse */
 				
-  int j_state ;			
+  long j_state ;			
   unsigned long j_trans_id ;
   unsigned long j_mount_id ;
   unsigned long j_start ;             /* start of current waiting commit (index into j_ap_blocks) */
@@ -329,6 +329,12 @@ typedef struct reiserfs_proc_info_data
   stat_cnt_t search_by_key;
   stat_cnt_t search_by_key_fs_changed;
   stat_cnt_t search_by_key_restarted;
+
+  stat_cnt_t insert_item_restarted;
+  stat_cnt_t paste_into_item_restarted;
+  stat_cnt_t cut_from_item_restarted;
+  stat_cnt_t delete_solid_item_restarted;
+  stat_cnt_t delete_item_restarted;
 
   stat_cnt_t leaked_oid;
   stat_cnt_t leaves_removable;
@@ -407,7 +413,7 @@ struct reiserfs_sb_info
 				/* To be obsoleted soon by per buffer seals.. -Hans */
     atomic_t s_generation_counter; // increased by one every time the
     // tree gets re-balanced
-    unsigned int s_properties;    /* File system properties. Currently holds
+    unsigned long s_properties;    /* File system properties. Currently holds
 				     on-disk FS format */
     
     /* session statistics */

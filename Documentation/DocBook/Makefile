@@ -1,7 +1,7 @@
 BOOKS	:= wanbook.sgml z8530book.sgml mcabook.sgml videobook.sgml \
 	   kernel-api.sgml parportbook.sgml kernel-hacking.sgml \
 	   kernel-locking.sgml via-audio.sgml mousedrivers.sgml sis900.sgml \
-	   deviceiobook.sgml procfs-guide.sgml tulip-user.sgml
+	   deviceiobook.sgml procfs-guide.sgml tulip-user.sgml ocp-guide.sgml
 
 PS	:=	$(patsubst %.sgml, %.ps, $(BOOKS))
 PDF	:=	$(patsubst %.sgml, %.pdf, $(BOOKS))
@@ -82,6 +82,10 @@ videobook.sgml: videobook.tmpl $(TOPDIR)/drivers/media/video/videodev.c
 
 procfs-guide.sgml:  procfs-guide.tmpl procfs_example.sgml
 	$(TOPDIR)/scripts/docgen < procfs-guide.tmpl >$@
+
+ocp-guide.sgml:  ocp-guide.tmpl  $(TOPDIR)/arch/ppc/kernel/ocp.c
+	$(TOPDIR)/scripts/docgen $(TOPDIR)/arch/ppc/kernel/ocp.c \
+	< ocp-guide.tmpl  >$@
 
 APISOURCES :=	$(TOPDIR)/drivers/media/video/videodev.c \
 		$(TOPDIR)/arch/i386/kernel/irq.c \

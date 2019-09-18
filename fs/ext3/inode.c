@@ -1586,8 +1586,10 @@ ext3_clear_blocks(handle_t *handle, struct inode *inode, struct buffer_head *bh,
 		}
 		ext3_mark_inode_dirty(handle, inode);
 		ext3_journal_test_restart(handle, inode);
-		BUFFER_TRACE(bh, "get_write_access");
-		ext3_journal_get_write_access(handle, bh);
+		if (bh) {
+			BUFFER_TRACE(bh, "retaking write access");
+			ext3_journal_get_write_access(handle, bh);
+		}
 	}
 
 	/*
@@ -1654,6 +1656,8 @@ static void ext3_free_data(handle_t *handle, struct inode *inode,
 	}
 
 	for (p = first; p < last; p++) {
+		debug_lock_break(1); /* bkl is held */
+		conditional_schedule();
 		nr = le32_to_cpu(*p);
 		if (nr) {
 			/* accumulate blocks to free if they're contiguous */
@@ -1718,6 +1722,8 @@ static void ext3_free_branches(handle_t *handle, struct inode *inode,
 
 			/* Go read the buffer for the next level down */
 			bh = bread(inode->i_dev, nr, inode->i_sb->s_blocksize);
+			debug_lock_break(1);
+			conditional_schedule();
 
 			/*
 			 * A read failure? Report error and clear slot

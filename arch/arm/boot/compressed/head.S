@@ -64,7 +64,7 @@
 		kphex	r7, 8		/* architecture id */
 		kputc	#':'
 		mrc	p15, 0, r0, c1, c0
-		kphex	r0, 8		/* control reg
+		kphex	r0, 8		/* control reg */
 		kputc	#'\n'
 		kphex	r5, 8		/* decompressed kernel start */
 		kputc	#'-'
@@ -211,14 +211,24 @@ LC0:		.word	__bss_start
  *  r4, r5, r6, r7
  */
 		.align	5
-cache_on:	ldr	r1, proc_sa110_type
+cache_on:	
+		ldr	r1, proc_sa110_type
 		eor	r1, r1, r6
 		movs	r1, r1, lsr #5		@ catch SA110 and SA1100
 		beq	1f
 		ldr     r1, proc_sa1110_type
 		eor	r1, r1, r6
 		movs	r1, r1, lsr #4
-		movne	pc, lr
+		beq	1f
+		ldr	r1, proc_xscale_type	@ catch xscale
+		eor	r1, r1, r6
+		movs	r1, r1, lsr #16
+		beq	1f
+		ldr	r1, proc_ixp1200_type
+		eor	r1, r1, r6
+		movs	r1, r1, lsr #4
+@		movne	pc, lr
+		bne	cache_off
 1:
 		sub	r3, r4, #16384		@ Page directory size
 		bic	r3, r3, #0xff		@ Align the pointer
@@ -235,9 +245,13 @@ cache_on:	ldr	r1, proc_sa110_type
 		orr	r1, r1, #3 << 10
 		add	r2, r3, #16384
 1:		cmp	r1, r8			@ if virt > start of RAM
-		orrge	r1, r1, #0x0c		@ set cacheable, bufferable
+#ifdef CONFIG_XSCALE_CACHE_ERRATA
+		orrhs	r1, r1, #0x08           @ set cacheable, not bufferable
+#else
+		orrhs	r1, r1, #0x0c		@ set cacheable, bufferable
+#endif
 		cmp	r1, r9			@ if virt > end of RAM
-		bicge	r1, r1, #0x0c		@ clear cacheable, bufferable
+		bichs	r1, r1, #0x0c		@ clear cacheable, bufferable
 		str	r1, [r0], #4		@ 1:1 mapping
 		add	r1, r1, #1048576
 		teq	r0, r2
@@ -318,6 +332,16 @@ proc_sa1110_type:
 		.word	0x6901b110
 		.size	proc_sa1110_type, . - proc_sa1110_type
 
+		.type	proc_xscale_type,#object
+proc_xscale_type:
+		.word	0x69050000
+		.size	proc_xscale_type, . - proc_xscale_type
+
+		.type	proc_ixp1200_type,#object
+proc_ixp1200_type:
+		.word	0x6901c120
+		.size	proc_ixp1200_type, . - proc_ixp1200_type
+
 /*
  * Turn off the Cache and MMU.  ARMv3 does not support
  * reading the control register, but ARMv4 does.
@@ -379,10 +403,18 @@ cache_clean_flush:
 		ldr	r1, proc_sa1110_type
 		eor	r1, r1, r6
 		movs	r1, r1, lsr #4
+		beq	1f
+		ldr	r1, proc_xscale_type
+		eor	r1, r1, r6
+		movs	r1, r1, lsr #16
+		beq	1f
+		ldr	r1, proc_ixp1200_type
+		eor	r1, r1, r6
+		movs	r1, r1, lsr #4
 		movne	pc, lr
 1:
 		bic	r1, pc, #31
-		add	r2, r1, #32768
+		add	r2, r1, #65536		@ 2x the largest dcache size
 1:		ldr	r12, [r1], #32		@ s/w flush D cache
 		teq	r1, r2
 		bne	1b
@@ -390,6 +422,7 @@ cache_clean_flush:
 		mcr	p15, 0, r1, c7, c7, 0	@ flush I cache
 		mcr	p15, 0, r1, c7, c10, 4	@ drain WB
 		mov	pc, lr
+
 
 /*
  * Various debugging routines for printing hex characters and

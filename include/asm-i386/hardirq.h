@@ -12,6 +12,7 @@ typedef struct {
 	unsigned int __local_bh_count;
 	unsigned int __syscall_count;
 	struct task_struct * __ksoftirqd_task; /* waitqueue is too large */
+	unsigned long idle_timestamp;          
 	unsigned int __nmi_count;	/* arch dependent */
 } ____cacheline_aligned irq_cpustat_t;
 
@@ -35,6 +36,8 @@ typedef struct {
 #define irq_exit(cpu, irq)	(local_irq_count(cpu)--)
 
 #define synchronize_irq()	barrier()
+
+#define release_irqlock(cpu)	do { } while (0)
 
 #else
 

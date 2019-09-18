@@ -502,7 +502,10 @@ extern inline void prefetchw(const void *x)
 {
 	 __asm__ __volatile__ ("prefetchw (%0)" : : "r"(x));
 }
-#define spin_lock_prefetch(x)	prefetchw(x)
+#define spin_lock_prefetch(x) do {				\
+	prefetchw(x);						\
+	preempt_prefetch(&current->preempt_count);		\
+} while(0)
 
 #endif
 

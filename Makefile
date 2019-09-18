@@ -1,16 +1,26 @@
 VERSION = 2
 PATCHLEVEL = 4
 SUBLEVEL = 17
-EXTRAVERSION =
+EXTRAVERSION = $(shell if [ -f .hhl_target_lspname ]; then \
+				echo "_mvl21-`cat .hhl_target_lspname`"; \
+		       else \
+				echo "_mvl21"; \
+		       fi)
 
 KERNELRELEASE=$(VERSION).$(PATCHLEVEL).$(SUBLEVEL)$(EXTRAVERSION)
 
-ARCH := $(shell uname -m | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ -e s/arm.*/arm/ -e s/sa110/arm/)
+ARCH := $(shell if [ -f .hhl_target_cpu ]; then \
+			cat .hhl_target_cpu; \
+		else \
+			uname -m | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ -e s/arm.*/arm/ -e s/sa110/arm/; \
+		fi)
 KERNELPATH=kernel-$(shell echo $(KERNELRELEASE) | sed -e "s/-//")
 
 CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 	  else if [ -x /bin/bash ]; then echo /bin/bash; \
 	  else echo sh; fi ; fi)
+
+SHELL := $(CONFIG_SHELL)
 TOPDIR	:= $(shell /bin/pwd)
 
 HPATH   	= $(TOPDIR)/include
@@ -19,7 +29,15 @@ FINDHPATH	= $(HPATH)/asm $(HPATH)/linux $(HPATH)/scsi $(HPATH)/net
 HOSTCC  	= gcc
 HOSTCFLAGS	= -Wall -Wstrict-prototypes -O2 -fomit-frame-pointer
 
-CROSS_COMPILE 	=
+CROSS_COMPILE   = $(shell if [ -f .hhl_cross_compile ]; then \
+			          cat .hhl_cross_compile; \
+			  fi)
+HOSTOS=$(shell uname)
+ifeq (${HOSTOS},SunOS)
+TOOLDIR=""
+else
+TOOLDIR="/sbin/"
+endif
 
 #
 # Include the make variables (CC, etc...)
@@ -35,8 +53,8 @@ STRIP		= $(CROSS_COMPILE)strip
 OBJCOPY		= $(CROSS_COMPILE)objcopy
 OBJDUMP		= $(CROSS_COMPILE)objdump
 MAKEFILES	= $(TOPDIR)/.config
-GENKSYMS	= /sbin/genksyms
-DEPMOD		= /sbin/depmod
+GENKSYMS	= $(TOOLDIR)genksyms
+DEPMOD		= $(TOOLDIR)depmod
 MODFLAGS	= -DMODULE
 CFLAGS_KERNEL	=
 PERL		= perl
@@ -75,9 +93,13 @@ endif
 
 #
 # INSTALL_MOD_PATH specifies a prefix to MODLIB for module directory
-# relocations required by build roots.  This is not defined in the
-# makefile but the arguement can be passed to make if needed.
+# relocations required by build roots.
 #
+
+INSTALL_MOD_PATH := $(shell \
+	if [ -f .hhl_target_installdir ]; then \
+			echo -n "`hhl-whereami`/../../devkit/`cat .hhl_target_installdir`/target"; \
+	fi)
 
 MODLIB	:= $(INSTALL_MOD_PATH)/lib/modules/$(KERNELRELEASE)
 export MODLIB
@@ -131,11 +153,13 @@ DRIVERS-  :=
 
 DRIVERS-$(CONFIG_ACPI) += drivers/acpi/acpi.o
 DRIVERS-$(CONFIG_PARPORT) += drivers/parport/driver.o
+DRIVERS-$(CONFIG_L3) += drivers/l3/l3.o
 DRIVERS-y += drivers/char/char.o \
 	drivers/block/block.o \
 	drivers/misc/misc.o \
 	drivers/net/net.o \
 	drivers/media/media.o
+DRIVERS-$(CONFIG_SERIAL_CORE) += drivers/serial/serial.o
 DRIVERS-$(CONFIG_AGP) += drivers/char/agp/agp.o
 DRIVERS-$(CONFIG_DRM) += drivers/char/drm/drm.o
 DRIVERS-$(CONFIG_NUBUS) += drivers/nubus/nubus.a
@@ -156,6 +180,7 @@ ifneq ($(CONFIG_CD_NO_IDESCSI)$(CONFIG_BLK_DEV_IDECD)$(CONFIG_BLK_DEV_SR)$(CONFI
 DRIVERS-y += drivers/cdrom/driver.o
 endif
 
+DRIVERS-$(CONFIG_SSI) += drivers/ssi/ssi.o
 DRIVERS-$(CONFIG_SOUND) += drivers/sound/sounddrivers.o
 DRIVERS-$(CONFIG_PCI) += drivers/pci/driver.o
 DRIVERS-$(CONFIG_MTD) += drivers/mtd/mtdlink.o
@@ -167,7 +192,7 @@ DRIVERS-$(CONFIG_DIO) += drivers/dio/dio.a
 DRIVERS-$(CONFIG_SBUS) += drivers/sbus/sbus_all.o
 DRIVERS-$(CONFIG_ZORRO) += drivers/zorro/driver.o
 DRIVERS-$(CONFIG_FC4) += drivers/fc4/fc4.a
-DRIVERS-$(CONFIG_ALL_PPC) += drivers/macintosh/macintosh.o
+DRIVERS-$(CONFIG_PPC) += drivers/macintosh/macintosh.o
 DRIVERS-$(CONFIG_MAC) += drivers/macintosh/macintosh.o
 DRIVERS-$(CONFIG_ISAPNP) += drivers/pnp/pnp.o
 DRIVERS-$(CONFIG_SGI_IP22) += drivers/sgi/sgi.a
@@ -184,6 +209,11 @@ DRIVERS-$(CONFIG_PHONE) += drivers/telephony/telephony.o
 DRIVERS-$(CONFIG_MD) += drivers/md/mddev.o
 DRIVERS-$(CONFIG_BLUEZ) += drivers/bluetooth/bluetooth.o
 DRIVERS-$(CONFIG_HOTPLUG_PCI) += drivers/hotplug/vmlinux-obj.o
+DRIVERS-$(CONFIG_MAPLE) += drivers/maple/maplebus.o
+DRIVERS-$(CONFIG_TRACE) += drivers/trace/trace_driver.o
+DRIVERS-$(CONFIG_VMEBUS) += drivers/vme/vme.o
+DRIVERS-$(CONFIG_SENSORS) += drivers/sensors/sensor.o
+DRIVERS-$(CONFIG_PLD) += drivers/pld/pld.o
 
 DRIVERS := $(DRIVERS-y)
 
@@ -350,6 +380,17 @@ tags: dummy
 	find include -type d \( -name "asm-*" -o -name config \) -prune -o -name '*.h' -print | xargs ctags $$CTAGSF -a && \
 	find $(SUBDIRS) init -name '*.[ch]' | xargs ctags $$CTAGSF -a
 
+# Similar to 'tags' production rule except builds cscope db and assures
+# that we use only headers for the current target.
+
+cscope:	dummy
+	rm -f tags cscope.files ; \
+	CTAGSF=`ctags --version | grep -i exuberant >/dev/null && echo "-I __initdata,__exitdata,EXPORT_SYMBOL,EXPORT_SYMBOL_NOVERS"`; \
+	find include -type d \( -name "asm-*" -o -name "arch-*" -o -name "proc-*" -o -name config \) -prune \
+		-o -follow -name '*.h' -print | tee -a cscope.files | xargs ctags $$CTAGSF -a && \
+	find $(SUBDIRS) init -name '*.[Sch]' | tee -a cscope.files | xargs ctags $$CTAGSF -a && \
+	cscope -k -b -I include
+
 ifdef CONFIG_MODULES
 ifdef CONFIG_MODVERSIONS
 MODFLAGS += -DMODVERSIONS -include $(HPATH)/linux/modversions.h
@@ -384,7 +425,9 @@ depmod_opts	:= -b $(INSTALL_MOD_PATH) -r
 endif
 .PHONY: _modinst_post
 _modinst_post: _modinst_post_pcmcia
-	if [ -r System.map ]; then $(DEPMOD) -ae -F System.map $(depmod_opts) $(KERNELRELEASE); fi
+	if [ "$(CROSS_COMPILE)" = "" ]; then \
+		if [ -r System.map ]; then \
+			$(DEPMOD) -ae -F System.map $(depmod_opts) $(KERNELRELEASE);fi;fi
 
 # Backwards compatibilty symlinks for people still using old versions
 # of pcmcia-cs with hard coded pathnames on insmod.  Remove
@@ -428,7 +471,7 @@ distclean: mrproper
 	rm -f core `find . \( -not -type d \) -and \
 		\( -name '*.orig' -o -name '*.rej' -o -name '*~' \
 		-o -name '*.bak' -o -name '#*#' -o -name '.*.orig' \
-		-o -name '.*.rej' -o -name '.SUMS' -o -size 0 \) -type f -print` TAGS tags
+		-o -name '.*.rej' -o -name '.SUMS' -o -size 0 \) -type f -print` TAGS tags cscope.*
 
 backup: mrproper
 	cd .. && tar cf - linux/ | gzip -9 > backup.gz
@@ -454,7 +497,7 @@ sums:
 
 dep-files: scripts/mkdep archdep include/linux/version.h
 	scripts/mkdep -- init/*.c > .depend
-	scripts/mkdep -- `find $(FINDHPATH) -name SCCS -prune -o -follow -name \*.h ! -name modversions.h -print` > .hdepend
+	( find $(FINDHPATH) -name SCCS -prune -o -follow -name \*.h ! -name modversions.h -print | xargs scripts/mkdep -- ) > .hdepend
 	$(MAKE) $(patsubst %,_sfdep_%,$(SUBDIRS)) _FASTDEP_ALL_SUB_DIRS="$(SUBDIRS)"
 ifdef CONFIG_MODVERSIONS
 	$(MAKE) update-modverfile
@@ -536,3 +579,7 @@ rpm:	clean spec
 	. scripts/mkversion > .version ; \
 	rpm -ta $(TOPDIR)/../$(KERNELPATH).tar.gz ; \
 	rm $(TOPDIR)/../$(KERNELPATH).tar.gz
+
+defconfig:
+	cp arch/$(ARCH)/defconfig .config
+

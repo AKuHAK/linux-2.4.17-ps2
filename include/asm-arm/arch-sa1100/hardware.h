@@ -15,7 +15,6 @@
 #include <linux/config.h>
 #include <asm/mach-types.h>
 
-
 /* Flushing areas */
 #define FLUSH_BASE_PHYS		0xe0000000	/* SA1100 zero bank */
 #define FLUSH_BASE		0xf5000000
@@ -60,6 +59,7 @@
    ( (((x)&0x00ffffff) | (((x)&(0x30000000>>VIO_SHIFT))<<VIO_SHIFT)) + PIO_START )
 
 #ifndef __ASSEMBLY__
+#include <asm/types.h>
 
 #if 0
 # define __REG(x)	(*((volatile u32 *)io_p2v(x)))
@@ -98,12 +98,6 @@ typedef struct { volatile u32 offset[4096]; } __regbase;
 #define GPIO_BOTH_EDGES         3
 #ifndef __ASSEMBLY__
 extern void set_GPIO_IRQ_edge( int gpio_mask, int edge_mask );
-
-/*
- * Return the current CPU clock frequency in units of 100kHz
- */
-extern unsigned short get_cclk_frequency(void);
-
 #endif
 
 
@@ -118,6 +112,12 @@ extern unsigned short get_cclk_frequency(void);
 
 #ifdef CONFIG_SA1100_PANGOLIN
 #include "pangolin.h"
+#endif
+
+#ifdef CONFIG_SA1100_ASSABET
+#include "assabet.h"
+#else
+#define machine_has_neponset()	(0)
 #endif
 
 #ifdef CONFIG_SA1100_HUW_WEBPANEL
@@ -145,8 +145,12 @@ extern unsigned short get_cclk_frequency(void);
 #include "empeg.h"
 #endif
 
-#ifdef CONFIG_SA1100_H3600
+#ifdef	CONFIG_SA1100_H3600
 #include "h3600.h"
+#else
+#define	machine_is_h3xxx()	(machine_is_h3100() || \
+				 machine_is_h3600() || \
+				 machine_is_h3800())
 #endif
 
 #ifdef CONFIG_SA1100_ITSY

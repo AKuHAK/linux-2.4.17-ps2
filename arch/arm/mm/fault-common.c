@@ -22,10 +22,13 @@
 #include <linux/proc_fs.h>
 #include <linux/init.h>
 
+#include <linux/trace.h>
+
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/unaligned.h>
+#include <asm/kgdb.h>
 
 #ifdef CONFIG_CPU_26
 #define FAULT_CODE_WRITE	0x02
@@ -123,6 +126,12 @@ __do_kernel_fault(struct mm_struct *mm, unsigned long addr, int error_code,
 		"paging request", addr);
 
 	show_pte(mm, addr);
+
+#ifdef	CONFIG_KGDB
+	if (kgdb_active()) {
+		do_kgdb(regs, SIGSEGV);
+	}
+#endif
 	die("Oops", regs, error_code);
 	do_exit(SIGKILL);
 }
@@ -138,9 +147,11 @@ __do_user_fault(struct task_struct *tsk, unsigned long addr, int error_code,
 	struct siginfo si;
 
 #ifdef CONFIG_DEBUG_USER
-	printk(KERN_DEBUG "%s: unhandled page fault at pc=0x%08lx, "
+	printk(/*KERN_DEBUG*/ "%s: unhandled page fault at pc=0x%08lx, "
 	       "lr=0x%08lx (bad address=0x%08lx, code %d)\n",
 	       tsk->comm, regs->ARM_pc, regs->ARM_lr, addr, error_code);
+	show_regs(regs);
+	dump_instr(regs);
 #endif
 
 	tsk->thread.address = addr;
@@ -173,6 +184,12 @@ __do_page_fault(struct mm_struct *mm, unsigned long addr, int error_code,
 {
 	struct vm_area_struct *vma;
 	int fault, mask;
+
+#if defined(CONFIG_KGDB)
+	/* REVISIT: This one may not be required? */
+	if (kgdb_fault_expected)
+		kgdb_handle_bus_error();
+#endif
 
 	vma = find_vma(mm, addr);
 	fault = -2; /* bad map area */
@@ -241,6 +258,11 @@ int do_page_fault(unsigned long addr, int error_code, struct pt_regs *regs)
 	struct mm_struct *mm;
 	int fault;
 
+#if defined(CONFIG_KGDB)
+	if (kgdb_fault_expected)
+		kgdb_handle_bus_error();
+#endif
+
 	tsk = current;
 	mm  = tsk->mm;
 
@@ -251,9 +273,13 @@ int do_page_fault(unsigned long addr, int error_code, struct pt_regs *regs)
 	if (in_interrupt() || !mm)
 		goto no_context;
 
+	TRACE_TRAP_ENTRY(14, instruction_pointer(regs));
+
 	down_read(&mm->mmap_sem);
 	fault = __do_page_fault(mm, addr, error_code, tsk);
 	up_read(&mm->mmap_sem);
+
+        TRACE_EVENT(TRACE_EV_TRAP_EXIT, NULL);
 
 	/*
 	 * Handle the "normal" case first

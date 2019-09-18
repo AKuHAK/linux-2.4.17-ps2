@@ -23,18 +23,6 @@
 
 long cs3_shadow;
 
-static int __init simpad_init(void)
-{
-	PSPR = 0xc0008000;
-	GPDR &= ~GPIO_GPIO0;
-	cs3_shadow = (EN1 | EN0 | LED2_ON | DISPLAY_ON | RS232_ON | 
-		      ENABLE_5V | RESET_SIMCARD);
-	*(CS3BUSTYPE *)(CS3_BASE) = cs3_shadow;
-	return 0;
-}
-
-__initcall(simpad_init);
-
 long get_cs3_shadow()
 {
 	return cs3_shadow;
@@ -96,11 +84,15 @@ static void __init simpad_map_io(void)
 	sa1100_map_io();
 	iotable_init(simpad_io_desc);
 
-#ifndef CONFIG_SERIAL_SA1100_OLD
+	PSPR = 0xc0008000;
+	GPDR &= ~GPIO_GPIO0;
+	cs3_shadow = (EN1 | EN0 | LED2_ON | DISPLAY_ON | RS232_ON | 
+		      ENABLE_5V | RESET_SIMCARD);
+	*(CS3BUSTYPE *)(CS3_BASE) = cs3_shadow;
+
 	//It is only possible to register 3 UART in serial_sa1100.c
 	sa1100_register_uart(0, 3);
 	sa1100_register_uart(1, 1);
-#endif
 }
 
 #ifdef CONFIG_PROC_FS

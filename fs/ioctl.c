@@ -8,6 +8,8 @@
 #include <linux/smp_lock.h>
 #include <linux/file.h>
 
+#include <linux/trace.h>
+
 #include <asm/uaccess.h>
 #include <asm/ioctls.h>
 
@@ -56,6 +58,10 @@ asmlinkage long sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
 	if (!filp)
 		goto out;
 	error = 0;
+	TRACE_FILE_SYSTEM(TRACE_EV_FILE_SYSTEM_IOCTL,
+			  fd,
+			  cmd,
+			  NULL);
 	lock_kernel();
 	switch (cmd) {
 		case FIOCLEX:

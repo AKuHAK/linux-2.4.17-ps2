@@ -1,4 +1,4 @@
-/*
+ /*
  *  linux/mm/oom_kill.c
  * 
  *  Copyright (C)  1998,2000  Rik van Riel
@@ -202,6 +202,17 @@ void out_of_memory(void)
 	unsigned long now, since;
 
 	/*
+	 * This is a trade off for embedded systems that typically
+	 * have no swap devices.  By just returning here we run
+	 * the risk of getblk looping forever and hanging the system. . .
+	 * having your embedded application killed doesn't quite work,
+	 * but neither does hanging the system.  If the apps don't
+	 * completely exhaust memory they'll keep running forever, as our
+	 * QA tests have shown.
+	 */
+#ifdef CONFIG_EMBEDDED_OOM_KILLER
+
+	/*
 	 * Enough swap space left?  Not OOM.
 	 */
 	if (nr_swap_pages > 0)
@@ -242,4 +253,5 @@ void out_of_memory(void)
 reset:
 	first = now;
 	count = 0;
+#endif /* CONFIG_OOM_KILLER */
 }
