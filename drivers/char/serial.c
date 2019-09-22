@@ -143,13 +143,6 @@ static char *serial_revdate = "2001-07-08";
 #define pxa_buggy_port(x) (0)
 #endif
 
-#ifdef CONFIG_ARCH_IXP425
-#define ixp425_port(x) ((x) == PORT_IXP425)
-#else
-#define ixp425_port(x) (0)
-#endif
-
-
 /* Set of debugging defines */
 
 #undef SERIAL_DEBUG_INTR
@@ -333,7 +326,6 @@ static struct serial_uart_config uart_config[] = {
 		  UART_STARTECH },
 	{ "RSA", 2048, UART_CLEAR_FIFO | UART_USE_FIFO }, 
 	{ "PXA UART", 64, UART_CLEAR_FIFO | UART_USE_FIFO },
-	{ "IXP425 UART", 64, UART_CLEAR_FIFO | UART_USE_FIFO },
 	{ 0, 0}
 };
 
@@ -755,7 +747,7 @@ static _INLINE_ void transmit_chars(struct async_struct *info, int *intr_done)
 		return;
 	}
 	
-	if (pxa_port(info->state->type) || ixp425_port(info->state->type))	
+	if (pxa_port(info->state->type))	
 		count = info->xmit_fifo_size / 2;
 	else 
 		count = info->xmit_fifo_size;
@@ -1458,7 +1450,7 @@ static int startup(struct async_struct * info)
 	 * Finally, enable interrupts
 	 */
 	info->IER = UART_IER_MSI | UART_IER_RLSI | UART_IER_RDI;
-	if (pxa_port(state->type) || ixp425_port(info->state->type))
+	if (pxa_port(state->type))
 		info->IER |= UART_IER_UUE | UART_IER_RTOIE;
 	serial_outp(info, UART_IER, info->IER);	/* enable interrupts */
 	
@@ -1917,7 +1909,7 @@ static void rs_flush_chars(struct tty_struct *tty)
 	save_flags(flags); cli();
 	info->IER |= UART_IER_THRI;
 	serial_out(info, UART_IER, info->IER);
-	if (pxa_port(info->state->type) || ixp425_port(info->state->type))
+	if (pxa_port(info->state->type))
 		rs_interrupt_single(info->state->irq, NULL, NULL);
 	restore_flags(flags);
 }
@@ -1995,7 +1987,7 @@ static int rs_write(struct tty_struct * tty, int from_user,
 	    && !(info->IER & UART_IER_THRI)) {
 		info->IER |= UART_IER_THRI;
 		serial_out(info, UART_IER, info->IER);
-		if (pxa_port(info->state->type) || ixp425_port(info->state->type)) {
+		if (pxa_port(info->state->type)) {
 			save_flags(flags); cli();
 			rs_interrupt_single(info->state->irq, NULL, NULL);
 			restore_flags(flags);
@@ -2057,7 +2049,7 @@ static void rs_send_xchar(struct tty_struct *tty, char ch)
 		/* Make sure transmit interrupts are on */
 		info->IER |= UART_IER_THRI;
 		serial_out(info, UART_IER, info->IER);
-		if (pxa_port(info->state->type) || ixp425_port(info->state->type))
+		if (pxa_port(info->state->type))
 			rs_interrupt_single(info->state->irq, NULL, NULL);
 	}
 }
@@ -5880,7 +5872,7 @@ static void serial_console_write(struct console *co, const char *s,
 	 *	First save the IER then disable the interrupts
 	 */
 	ier = serial_in(info, UART_IER);
-	if (pxa_port(info->state->type) || ixp425_port(info->state->type))
+	if (pxa_port(info->state->type))
 		serial_out(info, UART_IER, UART_IER_UUE);
 	else
 		serial_out(info, UART_IER, 0);
@@ -5926,7 +5918,7 @@ static int serial_console_wait_key(struct console *co)
 	 *	character.
 	 */
 	ier = serial_in(info, UART_IER);
-	if (pxa_port(info->state->type) || ixp425_port(info->state->type))
+	if (pxa_port(info->state->type))
 		serial_out(info, UART_IER, UART_IER_UUE);
 	else
 		serial_out(info, UART_IER, 0);
@@ -6066,7 +6058,7 @@ static int __init serial_console_setup(struct console *co, char *options)
 	serial_out(info, UART_DLL, quot & 0xff);	/* LS of divisor */
 	serial_out(info, UART_DLM, quot >> 8);		/* MS of divisor */
 	serial_out(info, UART_LCR, cval);		/* reset DLAB */
-	if (pxa_port(info->state->type) || ixp425_port(info->state->type))
+	if (pxa_port(info->state->type))
 		serial_out(info, UART_IER, UART_IER_UUE);
 	else
 		serial_out(info, UART_IER, 0);
