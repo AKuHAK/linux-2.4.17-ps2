@@ -239,15 +239,6 @@ int piix4_setup(void)
 	}
 
 	pci_read_config_byte(PIIX4_dev, SMBHSTCFG, &temp);
-
-	/* The Force CPCI-735 board sets this register up incorrectly,
-	   clear out the invalid junk. */
-	if (temp & 0x02) {
-		printk("Fixed I2C problem on Force CPCI735\n");
-		temp = temp & 0xfd;
-		pci_write_config_byte(PIIX4_dev, SMBHSTCFG, temp);
-	}
-
 /* If force_addr is set, we program the new address here. Just to make
    sure, we disable the PIIX4 first. */
 	if (force_addr) {

@@ -217,7 +217,7 @@
 #define	SONIC_END_OF_LINKS	0x0001
 
 
-#if defined(CONFIG_MACSONIC) || defined(CONFIG_XTENSA_XT2000)
+#ifdef CONFIG_MACSONIC
 /*
  * Big endian like structures on 680x0 Macs
  */

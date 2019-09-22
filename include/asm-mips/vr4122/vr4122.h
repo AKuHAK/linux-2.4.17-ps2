@@ -1,4 +1,4 @@
-/* $Id: vr4122.h,v 1.1 2001/12/08 22:11:34 ppopov Exp $
+/* $Id: vr4122.h,v 1.2 2002/01/17 01:05:06 jsun Exp $
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -34,100 +34,93 @@
 #define VR4122_ROM_SIZE		0x08000000
 
 
-/*
- * IRQ block assignement is done in board-specific header file
- *
-#define VR4122_CPU_IRQ_BASE	0
+/* CPU interrupts */
+#define VR4122_IRQ_SW1       0  /* IP0 - Software interrupt */
+#define VR4122_IRQ_SW2       1  /* IP1 - Software interrupt */
+#define VR4122_IRQ_INT0      2  /* IP2 - All other interrupts */
+#define VR4122_IRQ_INT1      3  /* IP3 - RTC Long1 */
+#define VR4122_IRQ_INT2      4  /* IP4 - RTC Long2 */
+#define VR4122_IRQ_INT3      5  /* IP5 - High Speed Modem */
+#define VR4122_IRQ_INT4      6  /* IP6 - Unused */
+#define VR4122_IRQ_TIMER     7  /* IP7 - Timer interrupt */
+
+/* Cascaded from VR4122_IRQ_INT0 (ICU mapped interrupts) */
+#define VR4122_IRQ_BATTERY   8
+#define VR4122_IRQ_POWER     9
+#define VR4122_IRQ_RTCL1     10  /* Use VR4122_IRQ_INT1 instead. */
+#define VR4122_IRQ_ETIMER    11
+#define VR4122_IRQ_RFU12     12
+#define VR4122_IRQ_RFU13     13
+#define VR4122_IRQ_RFU14     14
+#define VR4122_IRQ_RFU15     15
+#define VR4122_IRQ_GIU       16  /* This is a cascade to IRQs 40-71. Do not use. */
+#define VR4122_IRQ_SIU       17
+#define VR4122_IRQ_WRBERR    18
+#define VR4122_IRQ_SOFT      19
+#define VR4122_IRQ_RFU20     20
+#define VR4122_IRQ_DOZEPIU   21
+#define VR4122_IRQ_RFU22     22
+#define VR4122_IRQ_RFU23     23
+#define VR4122_IRQ_RTCL2     24  /* Use VR4122_IRQ_INT2 instead. */
+#define VR4122_IRQ_LED       25
+#define VR4122_IRQ_HSP       26  /* Use VR4122_IRQ_INT3 instead. */
+#define VR4122_IRQ_TCLK      27
+#define VR4122_IRQ_FIR       28
+#define VR4122_IRQ_DSIU      29
+#define VR4122_IRQ_PCIU      30
+#define VR4122_IRQ_RFU31     31
+#define VR4122_IRQ_RFU32     32
+#define VR4122_IRQ_RFU33     33
+#define VR4122_IRQ_RFU34     34
+#define VR4122_IRQ_RFU35     35
+#define VR4122_IRQ_RFU36     36
+#define VR4122_IRQ_RFU37     37
+#define VR4122_IRQ_RFU38     38
+#define VR4122_IRQ_RFU39     39
+
+/* Cascaded from VR4122_IRQ_GIU */
+#define VR4122_IRQ_GPIO0     40
+#define VR4122_IRQ_GPIO1     41
+#define VR4122_IRQ_GPIO2     42
+#define VR4122_IRQ_GPIO3     43
+#define VR4122_IRQ_GPIO4     44
+#define VR4122_IRQ_GPIO5     45
+#define VR4122_IRQ_GPIO6     46
+#define VR4122_IRQ_GPIO7     47
+#define VR4122_IRQ_GPIO8     48
+#define VR4122_IRQ_GPIO9     49
+#define VR4122_IRQ_GPIO10    50
+#define VR4122_IRQ_GPIO11    51
+#define VR4122_IRQ_GPIO12    52
+#define VR4122_IRQ_GPIO13    53
+#define VR4122_IRQ_GPIO14    54
+#define VR4122_IRQ_GPIO15    55
+#define VR4122_IRQ_GPIO16    56
+#define VR4122_IRQ_GPIO17    57
+#define VR4122_IRQ_GPIO18    58
+#define VR4122_IRQ_GPIO19    59
+#define VR4122_IRQ_GPIO20    60
+#define VR4122_IRQ_GPIO21    61
+#define VR4122_IRQ_GPIO22    62
+#define VR4122_IRQ_GPIO23    63
+#define VR4122_IRQ_GPIO24    64
+#define VR4122_IRQ_GPIO25    65
+#define VR4122_IRQ_GPIO26    66
+#define VR4122_IRQ_GPIO27    67
+#define VR4122_IRQ_GPIO28    68
+#define VR4122_IRQ_GPIO29    69
+#define VR4122_IRQ_GPIO30    70
+#define VR4122_IRQ_GPIO31    71
+#define VR4122_IRQ_LAST      72
+
+/* Alternative to above GPIO IRQ defines */
+#define VR4122_IRQ_GPIO(pin) ((VR4122_IRQ_GPIO0)ADDR((pin))
+
 #define VR4122_SYSINT1_IRQ_BASE	8
 #define VR4122_SYSINT2_IRQ_BASE	24
 #define VR4122_GIUINTL_IRQ_BASE	40
 #define VR4122_GIUINTH_IRQ_BASE	56
-*/
-#define	VR4122_NUM_CPU_IRQ		8
-#define	VR4122_NUM_SYSINT1_IRQ		16
-#define	VR4122_NUM_SYSINT2_IRQ		16
-#define	VR4122_NUM_GIUINTL_IRQ		16
-#define	VR4122_NUM_GIUINTH_IRQ		16
 
-/* CPU interrupts */
-#define VR4122_IRQ_SW1       (VR4122_CPU_IRQ_BASE + 0)	/* IP0 - Software interrupt */
-#define VR4122_IRQ_SW2       (VR4122_CPU_IRQ_BASE + 1)  /* IP1 - Software interrupt */
-#define VR4122_IRQ_INT0      (VR4122_CPU_IRQ_BASE + 2)  /* IP2 - All other interrupts */
-#define VR4122_IRQ_INT1      (VR4122_CPU_IRQ_BASE + 3)  /* IP3 - RTC Long1 */
-#define VR4122_IRQ_INT2      (VR4122_CPU_IRQ_BASE + 4)  /* IP4 - RTC Long2 */
-#define VR4122_IRQ_INT3      (VR4122_CPU_IRQ_BASE + 5)  /* IP5 - High Speed Modem */
-#define VR4122_IRQ_INT4      (VR4122_CPU_IRQ_BASE + 6)  /* IP6 - Unused */
-#define VR4122_IRQ_TIMER     (VR4122_CPU_IRQ_BASE + 7)  /* IP7 - Timer interrupt */
-
-/* Cascaded from VR4122_IRQ_INT0 (ICU mapped interrupts) */
-#define VR4122_IRQ_BATTERY   (VR4122_SYSINT1_IRQ_BASE + 0)
-#define VR4122_IRQ_POWER     (VR4122_SYSINT1_IRQ_BASE + 1)
-#define VR4122_IRQ_RTCL1     (VR4122_SYSINT1_IRQ_BASE + 2)  /* Use VR4122_IRQ_INT1 instead. */
-#define VR4122_IRQ_ETIMER    (VR4122_SYSINT1_IRQ_BASE + 3)
-#define VR4122_IRQ_RFU12     (VR4122_SYSINT1_IRQ_BASE + 4)
-#define VR4122_IRQ_RFU13     (VR4122_SYSINT1_IRQ_BASE + 5)
-#define VR4122_IRQ_RFU14     (VR4122_SYSINT1_IRQ_BASE + 6)
-#define VR4122_IRQ_RFU15     (VR4122_SYSINT1_IRQ_BASE + 7)
-#define VR4122_IRQ_GIU       (VR4122_SYSINT1_IRQ_BASE + 8) /* This is a cascade to IRQs 40-71. Do not use. */
-#define VR4122_IRQ_SIU       (VR4122_SYSINT1_IRQ_BASE + 9)
-#define VR4122_IRQ_WRBERR    (VR4122_SYSINT1_IRQ_BASE + 10)
-#define VR4122_IRQ_SOFT      (VR4122_SYSINT1_IRQ_BASE + 11)
-#define VR4122_IRQ_RFU20     (VR4122_SYSINT1_IRQ_BASE + 12)
-#define VR4122_IRQ_DOZEPIU   (VR4122_SYSINT1_IRQ_BASE + 13)
-#define VR4122_IRQ_RFU22     (VR4122_SYSINT1_IRQ_BASE + 14)
-#define VR4122_IRQ_RFU23     (VR4122_SYSINT1_IRQ_BASE + 15)
-
-#define VR4122_IRQ_RTCL2     (VR4122_SYSINT2_IRQ_BASE + 0)  /* Use VR4122_IRQ_INT2 instead. */
-#define VR4122_IRQ_LED       (VR4122_SYSINT2_IRQ_BASE + 1)
-#define VR4122_IRQ_HSP       (VR4122_SYSINT2_IRQ_BASE + 2)  /* Use VR4122_IRQ_INT3 instead. */
-#define VR4122_IRQ_TCLK      (VR4122_SYSINT2_IRQ_BASE + 3)
-#define VR4122_IRQ_FIR       (VR4122_SYSINT2_IRQ_BASE + 4)
-#define VR4122_IRQ_DSIU      (VR4122_SYSINT2_IRQ_BASE + 5)
-#define VR4122_IRQ_PCIU      (VR4122_SYSINT2_IRQ_BASE + 6)
-#define VR4122_IRQ_RFU31     (VR4122_SYSINT2_IRQ_BASE + 7)
-#define VR4122_IRQ_RFU32     (VR4122_SYSINT2_IRQ_BASE + 8)
-#define VR4122_IRQ_RFU33     (VR4122_SYSINT2_IRQ_BASE + 9)
-#define VR4122_IRQ_RFU34     (VR4122_SYSINT2_IRQ_BASE + 10)
-#define VR4122_IRQ_RFU35     (VR4122_SYSINT2_IRQ_BASE + 11)
-#define VR4122_IRQ_RFU36     (VR4122_SYSINT2_IRQ_BASE + 12)
-#define VR4122_IRQ_RFU37     (VR4122_SYSINT2_IRQ_BASE + 13)
-#define VR4122_IRQ_RFU38     (VR4122_SYSINT2_IRQ_BASE + 14)
-#define VR4122_IRQ_RFU39     (VR4122_SYSINT2_IRQ_BASE + 15)
-
-/* Cascaded from VR4122_IRQ_GIU */
-#define VR4122_IRQ_GPIO0     (VR4122_GIUINTL_IRQ_BASE + 0)
-#define VR4122_IRQ_GPIO1     (VR4122_GIUINTL_IRQ_BASE + 1)
-#define VR4122_IRQ_GPIO2     (VR4122_GIUINTL_IRQ_BASE + 2)
-#define VR4122_IRQ_GPIO3     (VR4122_GIUINTL_IRQ_BASE + 3)
-#define VR4122_IRQ_GPIO4     (VR4122_GIUINTL_IRQ_BASE + 4)
-#define VR4122_IRQ_GPIO5     (VR4122_GIUINTL_IRQ_BASE + 5)
-#define VR4122_IRQ_GPIO6     (VR4122_GIUINTL_IRQ_BASE + 6)
-#define VR4122_IRQ_GPIO7     (VR4122_GIUINTL_IRQ_BASE + 7)
-#define VR4122_IRQ_GPIO8     (VR4122_GIUINTL_IRQ_BASE + 8)
-#define VR4122_IRQ_GPIO9     (VR4122_GIUINTL_IRQ_BASE + 9)
-#define VR4122_IRQ_GPIO10    (VR4122_GIUINTL_IRQ_BASE + 10)
-#define VR4122_IRQ_GPIO11    (VR4122_GIUINTL_IRQ_BASE + 11)
-#define VR4122_IRQ_GPIO12    (VR4122_GIUINTL_IRQ_BASE + 12)
-#define VR4122_IRQ_GPIO13    (VR4122_GIUINTL_IRQ_BASE + 13)
-#define VR4122_IRQ_GPIO14    (VR4122_GIUINTL_IRQ_BASE + 14)
-#define VR4122_IRQ_GPIO15    (VR4122_GIUINTL_IRQ_BASE + 15)
-
-#define VR4122_IRQ_GPIO16    (VR4122_GIUINTH_IRQ_BASE + 0)
-#define VR4122_IRQ_GPIO17    (VR4122_GIUINTH_IRQ_BASE + 1)
-#define VR4122_IRQ_GPIO18    (VR4122_GIUINTH_IRQ_BASE + 2)
-#define VR4122_IRQ_GPIO19    (VR4122_GIUINTH_IRQ_BASE + 3)
-#define VR4122_IRQ_GPIO20    (VR4122_GIUINTH_IRQ_BASE + 4)
-#define VR4122_IRQ_GPIO21    (VR4122_GIUINTH_IRQ_BASE + 5)
-#define VR4122_IRQ_GPIO22    (VR4122_GIUINTH_IRQ_BASE + 6)
-#define VR4122_IRQ_GPIO23    (VR4122_GIUINTH_IRQ_BASE + 7)
-#define VR4122_IRQ_GPIO24    (VR4122_GIUINTH_IRQ_BASE + 8)
-#define VR4122_IRQ_GPIO25    (VR4122_GIUINTH_IRQ_BASE + 9)
-#define VR4122_IRQ_GPIO26    (VR4122_GIUINTH_IRQ_BASE + 10)
-#define VR4122_IRQ_GPIO27    (VR4122_GIUINTH_IRQ_BASE + 11)
-#define VR4122_IRQ_GPIO28    (VR4122_GIUINTH_IRQ_BASE + 12)
-#define VR4122_IRQ_GPIO29    (VR4122_GIUINTH_IRQ_BASE + 13)
-#define VR4122_IRQ_GPIO30    (VR4122_GIUINTH_IRQ_BASE + 14)
-#define VR4122_IRQ_GPIO31    (VR4122_GIUINTH_IRQ_BASE + 15)
 
 /*
  * Embedded CPU peripheral registers
@@ -525,18 +518,5 @@ extern __inline__ void vr4122_write_gpio_high(unsigned short val)
 #define VR4122_PCIMBA2REG	KSEG1ADDR(0x0F000D18)
 #define VR4122_PCIINTLINEREG	KSEG1ADDR(0x0F000D3C)
 #define VR4122_PCIRETVALREG	KSEG1ADDR(0x0F000D40)
-
-/*
- * board-specific header file
- */
-#include <linux/config.h>
-
-#if defined(CONFIG_NEC_EAGLE)
-#include <asm/vr4122/eagle.h>
-#elif defined(CONFIG_NEC_DDB4131)
-#include <asm/vr4122/ddb4131.h>
-#else
-#error "Unknown vr4122-based board!"
-#endif
 
 #endif /* __ASM_MIPS_VR4122_H */

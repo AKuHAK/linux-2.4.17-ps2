@@ -935,11 +935,7 @@ static int orinoco_hw_get_essid(struct orinoco_private *priv, int *active,
 			goto fail_unlock;
 	}
 
-#if defined(CONFIG_TOSHIBA_RBTX4927) && defined(__MIPSEB__)
-	len = essidbuf.len;
-#else
 	len = le16_to_cpu(essidbuf.len);
-#endif
 
 	memset(buf, 0, sizeof(buf));
 	memcpy(buf, p, len);
@@ -1003,11 +999,7 @@ static int orinoco_hw_get_bitratelist(struct orinoco_private *priv, int *numrate
 	if (err)
 		return err;
 	
-#if defined(CONFIG_TOSHIBA_RBTX4927) && defined(__MIPSEB__)
-	num = list.len;
-#else
 	num = le16_to_cpu(list.len);
-#endif
 	*numrates = num;
 	num = min(num, max);
 
@@ -1642,11 +1634,7 @@ orinoco_init(struct net_device *dev)
 		goto out;
 	}
 	if (nickbuf.len)
-#if defined(CONFIG_TOSHIBA_RBTX4927) && defined(__MIPSEB__)
-		len = min(IW_ESSID_MAX_SIZE, (int)nickbuf.len);
-#else
 		len = min(IW_ESSID_MAX_SIZE, (int)le16_to_cpu(nickbuf.len));
-#endif
 	else
 		len = min(IW_ESSID_MAX_SIZE, 2 * reclen);
 	memcpy(priv->nick, &nickbuf.val, len);
@@ -1784,15 +1772,9 @@ orinoco_get_wireless_stats(struct net_device *dev)
 		DEBUG(3, "%s: Global stats = %X-%X-%X\n", dev->name,
 		      cq.qual, cq.signal, cq.noise);
 
-#if defined(CONFIG_TOSHIBA_RBTX4927) && defined(__MIPSEB__)
-		wstats->qual.qual = (int)cq.qual;
-		wstats->qual.level = (int)cq.signal - 0x95;
-		wstats->qual.noise = (int)cq.noise - 0x95;
-#else
 		wstats->qual.qual = (int)le16_to_cpu(cq.qual);
 		wstats->qual.level = (int)le16_to_cpu(cq.signal) - 0x95;
 		wstats->qual.noise = (int)le16_to_cpu(cq.noise) - 0x95;
-#endif
 		wstats->qual.updated = 7;
 	}
 
@@ -1893,11 +1875,7 @@ orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 	memset(&hdr, 0, sizeof(hdr));
 	memcpy(hdr.p80211.addr1, eh->h_dest, ETH_ALEN);
 	memcpy(hdr.p80211.addr2, eh->h_source, ETH_ALEN);
-#if defined(CONFIG_TOSHIBA_RBTX4927) && defined(__MIPSEB__)
-	hdr.p80211.frame_ctl = cpu_to_le16(IEEE802_11_FTYPE_DATA);
-#else
 	hdr.p80211.frame_ctl = IEEE802_11_FTYPE_DATA;
-#endif
 
 	/* Encapsulate Ethernet-II frames */
 	if (ntohs(eh->h_proto) > 1500) { /* Ethernet-II frame */
@@ -3775,11 +3753,7 @@ orinoco_proc_get_hermes_recs(char *page, char **start, off_t requested_offset,
 		switch (record_table[i].displaytype) {
 		case DISPLAY_WORDS:
 			for (j = 0; j < len / 2; j++) {
-#if defined(CONFIG_TOSHIBA_RBTX4927) && defined(__MIPSEB__)
-				buf += sprintf(buf, "%04X-", val16[j]);
-#else
 				buf += sprintf(buf, "%04X-", le16_to_cpu(val16[j]));
-#endif
 			}
 			buf--;
 			break;
@@ -3793,11 +3767,7 @@ orinoco_proc_get_hermes_recs(char *page, char **start, off_t requested_offset,
 			break;
 
 		case DISPLAY_STRING:
-#if defined(CONFIG_TOSHIBA_RBTX4927) && defined(__MIPSEB__)
-			len = min(len, val16[0]+2);
-#else
 			len = min(len, le16_to_cpu(val16[0])+2);
-#endif
 			val8[len] = '\0';
 			buf += sprintf(buf, "\"%s\"", (char *)&val16[1]);
 			break;

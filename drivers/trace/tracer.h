@@ -1,8 +1,7 @@
 /*
  * drivers/trace/tracer.h
  *
- * Copyright (C) 1999, 2000, 2001 Karim Yaghmour (karym@opersys.com)
- * Portions contributed by T. Halloran: (C) Copyright 2002 IBM Poughkeepsie, IBM Corporation
+ * Copyright (C) 1999, 2000, 2001 Karim Yaghmour
  *
  * This contains the necessary definitions the system tracer
  */
@@ -43,8 +42,6 @@ typedef uint32_t    trace_time_delta;    /* The type used to start the time delt
 #define TRACE_ARCH_TYPE_PPC_6xx             3   /* PPC 6xx/7xx/74xx/8260 system */
 #define TRACE_ARCH_TYPE_PPC_8xx             4   /* PPC 8xx system */
 #define TRACE_ARCH_TYPE_PPC_iSeries         5   /* PPC iSeries system */
-#define TRACE_ARCH_TYPE_ARM                 6   /* ARM system */
-#define TRACE_ARCH_TYPE_MIPS                7   /* MIPS system */
 
 /* System types */
 #define TRACE_SYS_TYPE_VANILLA_LINUX        1   /* Vanilla linux kernel  */
@@ -186,48 +183,10 @@ static inline int ltt_test_bit(int nr, __const__ volatile void *addr)
 	return ((p[nr >> 5] >> (24 - (nr & 0x18) + (nr & 0x7))) & 1) != 0;
 }
 #else  /* ifdef __powerpc__ */
-#if defined(__s390__) || defined(__mips__) /* Added by T.H., modified by K.Y. for mips */
-/* Use functions taken from LTTTypes.h */
-extern __inline__ int ltt_set_bit(int nr, void * addr)
-{
-  unsigned char *p = addr;
-  unsigned char mask = 1 << (nr&7);
-  unsigned char old;
-
-  p += nr>>3;
-  old = *p;
-  *p |= mask;
-
-  return ((old & mask) != 0);
-}
-
-extern __inline__ int ltt_clear_bit(int nr, void * addr)
-{
-  unsigned char *p = addr;
-  unsigned char mask = 1 << (nr&7);
-  unsigned char old;
-
-  p += nr>>3;
-  old = *p;
-  *p &= ~mask;
-
-  return ((old & mask) != 0);
-}
-
-extern __inline__ int ltt_test_bit(int nr,void *addr)
-{
-  unsigned char *p = addr;
-  unsigned char mask = 1 << (nr&7);
-   
-  p += nr>>3;
-                
-  return ((*p & mask) != 0);
-}
-#else /* For non-powerpc, non-s390 and non-mips processors we can use the kernel functions. */
+/* For non-powerpc processors we can use the kernel functions. */
 #define ltt_set_bit    set_bit
 #define ltt_clear_bit  clear_bit
 #define ltt_test_bit   test_bit
-#endif /* if defined(__s390__) || defined(__mips__) */
 #endif /* ifdef __powerpc__ */
 
 /* Function prototypes */

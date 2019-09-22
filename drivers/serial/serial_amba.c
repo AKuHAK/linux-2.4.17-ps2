@@ -579,7 +579,6 @@ static struct uart_ops amba_pops = {
 };
 
 static struct uart_port amba_ports[UART_NR] = {
-#if     !defined(CONFIG_KGDB_UART0)
 	{
 		membase:	(void *)IO_ADDRESS(INTEGRATOR_UART0_BASE),
 		mapbase:	INTEGRATOR_UART0_BASE,
@@ -591,10 +590,6 @@ static struct uart_port amba_ports[UART_NR] = {
 		ops:		&amba_pops,
 		flags:		ASYNC_BOOT_AUTOCONF,
 	},
-#else
-	{ 0 },
-#endif
-#if     !defined(CONFIG_KGDB_UART1)
 	{
 		membase:	(void *)IO_ADDRESS(INTEGRATOR_UART1_BASE),
 		mapbase:	INTEGRATOR_UART1_BASE,
@@ -606,9 +601,6 @@ static struct uart_port amba_ports[UART_NR] = {
 		ops:		&amba_pops,
 		flags:		ASYNC_BOOT_AUTOCONF,
 	}
-#else
-	{ 0 }
-#endif
 };
 
 #ifdef CONFIG_SERIAL_AMBA_CONSOLE

@@ -40,8 +40,6 @@
 #include <asm/rc32300/79eb355.h>
 #endif
 
-extern int idtprintf(const char *fmt, ...);
-
 /* cpu pipeline flush */
 static inline void rc32300_sync(void)
 {
@@ -65,29 +63,37 @@ static inline void rc32300_sync_delay(int ms)
  * swapping should be done when accessing the internal
  * registers.
  */
-static inline u8 rc32300_readb(unsigned long pa)
+static inline u8 rc32300_inb(unsigned long pa)
 {
-	return *((volatile u8 *)KSEG1ADDR(pa));
+	return *((volatile u8 *)(mips_io_port_base + pa));
 }
-static inline u16 rc32300_readw(unsigned long pa)
+static inline u16 rc32300_inw(unsigned long pa)
 {
-	return *((volatile u16 *)KSEG1ADDR(pa));
+	return *((volatile u16 *)(mips_io_port_base + pa));
 }
-static inline u32 rc32300_readl(unsigned long pa)
+static inline u32 rc32300_inl(unsigned long pa)
 {
-	return *((volatile u32 *)KSEG1ADDR(pa));
+	return *((volatile u32 *)(mips_io_port_base + pa));
 }
-static inline void rc32300_writeb(u8 val, unsigned long pa)
+static inline void rc32300_outb(u8 val, unsigned long pa)
 {
-	*((volatile u8 *)KSEG1ADDR(pa)) = val;
+	*((volatile u8 *)(mips_io_port_base + pa)) = val;
 }
-static inline void rc32300_writew(u16 val, unsigned long pa)
+static inline void rc32300_outw(u16 val, unsigned long pa)
 {
-	*((volatile u16 *)KSEG1ADDR(pa)) = val;
+	*((volatile u16 *)(mips_io_port_base + pa)) = val;
 }
-static inline void rc32300_writel(u32 val, unsigned long pa)
+static inline void rc32300_outl(u32 val, unsigned long pa)
 {
-	*((volatile u32 *)KSEG1ADDR(pa)) = val;
+	*((volatile u32 *)(mips_io_port_base + pa)) = val;
+}
+static inline u32 rc32300_readl(unsigned long va)
+{
+	return *((volatile u32 *)va);
+}
+static inline void rc32300_writel(u32 val, unsigned long va)
+{
+	*((volatile u32 *)va) = val;
 }
 
 /*

@@ -103,12 +103,12 @@
    separate ID tables, and then a third table that combines them
    just for the purpose of exporting the autoloading information.
 */
-static struct usb_device_id id_table_std [] = {
+static __devinitdata struct usb_device_id id_table_std [] = {
 	{ USB_DEVICE(CONNECT_TECH_VENDOR_ID, CONNECT_TECH_WHITE_HEAT_ID) },
 	{ }						/* Terminating entry */
 };
 
-static struct usb_device_id id_table_prerenumeration [] = {
+static __devinitdata struct usb_device_id id_table_prerenumeration [] = {
 	{ USB_DEVICE(CONNECT_TECH_VENDOR_ID, CONNECT_TECH_FAKE_WHITE_HEAT_ID) },
 	{ }						/* Terminating entry */
 };

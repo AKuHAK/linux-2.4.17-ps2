@@ -2,7 +2,7 @@
 /* i2c-algo-8260.h i2c driver algorithms for MPC8260 CPM		     */
 /* ------------------------------------------------------------------------- */
 
-/* $Id$ */
+/* $Id: i2c-algo-8260.h,v 1.1 2001/12/20 21:06:51 alowe Exp $ */
 
 #ifndef I2C_ALGO_8260_H
 #define I2C_ALGO_8260_H 1

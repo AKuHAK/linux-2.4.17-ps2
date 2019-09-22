@@ -154,7 +154,6 @@
 
 #define I2C_ALGO_MPC8XX 0x110000	/* MPC8xx PowerPC I2C algorithm */
 #define I2C_ALGO_MPC8260 0x120000	/* MPC8260 CPM I2C */
-#define I2C_ALGO_OCP    0x130000	/* IBM or otherwise On-chip I2C algorithm */
 
 #define I2C_ALGO_EXP	0x800000	/* experimental			*/
 
@@ -196,9 +195,6 @@
 
 /* --- MPC8xx PowerPC adapters						*/
 #define I2C_HW_MPC8XX_EPON 0x00	/* Eponymous MPC8xx I2C adapter 	*/
-
-/* --- PowerPC on-chip adapters						*/
-#define I2C_HW_OCP 0x00	/* IBM on-chip I2C adapter 	*/
 
 /* --- MPC8260 PowerPC CPM adapters					*/
 #define I2C_HW_MPC8260_EPON 0x00 /* Eponymous MPC8260 I2C adapter	*/

@@ -8,7 +8,7 @@
  * Copyright (C) 1997 Cobalt Microserver
  * Copyright (C) 1997 Ralf Baechle
  *
- * $Id: cobalt.h,v 1.3 2001/12/01 00:56:22 jsimmons Exp $
+ * $Id: cobalt.h,v 1.1 2001/12/08 22:11:34 ppopov Exp $
  */
 #ifndef __ASM_MIPS_COBALT_H 
 #define __ASM_MIPS_COBALT_H 

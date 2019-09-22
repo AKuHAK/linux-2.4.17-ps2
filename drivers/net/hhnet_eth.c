@@ -24,10 +24,6 @@
 #include "hhnet.h"
 #include "hhnet_eth.h"
 
-MODULE_AUTHOR("MontaVista Software <source@mvista.com>");
-MODULE_DESCRIPTION("MontaVista Net Backpanel Driver (Ethernet layer)");
-MODULE_LICENSE("GPL");
-
 #define TOGGLE_QUEUE
 #define START_QUEUE
 

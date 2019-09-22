@@ -103,7 +103,7 @@ static int hermes_issue_cmd(hermes_t *hw, u16 cmd, u16 param0)
 
 	/* First wait for the command register to unbusy */
 	reg = hermes_read_regn(hw, CMD);
-	while ( (reg & HERMES_CMD_BUSY) && k ) {
+	while ( (reg % HERMES_CMD_BUSY) && k ) {
 		k--;
 		udelay(1);
 		reg = hermes_read_regn(hw, CMD);
@@ -368,16 +368,6 @@ int hermes_bap_seek(hermes_t *hw, int bap, u16 id, u16 offset)
 	return 0;
 }
 
-#if defined(CONFIG_TOSHIBA_RBTX4927) && defined(__MIPSEB__)
-void be_swap_words(void *addr, int count)
-{
-	while (count--) {
-		*(u16 *)addr = __ioswab16(*(u16 *)addr);
-		addr += 2;
-	}
-}
-#endif
-
 /* Read a block of data from the chip's buffer, via the
  * BAP. Synchronization/serialization is the caller's problem.  len
  * must be even.
@@ -400,9 +390,6 @@ int hermes_bap_pread(hermes_t *hw, int bap, void *buf, int len,
 	/* Actually do the transfer */
 	hermes_read_words(hw, dreg, buf, len/2);
 
-#if defined(CONFIG_TOSHIBA_RBTX4927) && defined(__MIPSEB__)
-        be_swap_words(buf,len/2);
-#endif
  out:
 	return err;
 }
@@ -426,10 +413,6 @@ int hermes_bap_pwrite(hermes_t *hw, int bap, const void *buf, int len,
 	if (err)
 		goto out;
 	
-#if defined(CONFIG_TOSHIBA_RBTX4927) && defined(__MIPSEB__)
-        be_swap_words(buf,len/2);
-#endif
-
 	/* Actually do the transfer */
 	hermes_write_words(hw, dreg, buf, len/2);
 
@@ -482,9 +465,6 @@ int hermes_read_ltv(hermes_t *hw, int bap, u16 rid, int bufsize,
            the actual record length */
 	hermes_read_words(hw, dreg, buf, bufsize / 2);
 
-#if defined(CONFIG_TOSHIBA_RBTX4927) && defined(__MIPSEB__)
-        be_swap_words(buf,bufsize/2);
-#endif
  out:
 	return err;
 }
@@ -508,10 +488,6 @@ int hermes_write_ltv(hermes_t *hw, int bap, u16 rid,
 	hermes_write_reg(hw, dreg, rid);
 
 	count = length - 1;
-
-#if defined(CONFIG_TOSHIBA_RBTX4927) && defined(__MIPSEB__)
-        be_swap_words(value,count);
-#endif
 
 	hermes_write_words(hw, dreg, value, count);
 

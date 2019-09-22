@@ -284,14 +284,6 @@ static int ei_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	   
 	spin_lock_irqsave(&ei_local->page_lock, flags);
 	outb_p(0x00, e8390_base + EN0_IMR);
-#ifdef CONFIG_CPU_HAS_WB
-	{
-		/* Read to assure that previous outb_p is done in controller. */
-		volatile unsigned char v = inb_p(e8390_base + EN0_COUNTER2);
-		/* mb to prevent interrupts from being enabled. */
-		mb();
-	}
-#endif
 	spin_unlock_irqrestore(&ei_local->page_lock, flags);
 	
 	

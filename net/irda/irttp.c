@@ -105,7 +105,8 @@ int __init irttp_init(void)
  *    Called by module destruction/cleanup code
  *
  */
-void __exit irttp_cleanup(void) 
+#ifdef MODULE
+void irttp_cleanup(void) 
 {
 	/* Check for main structure */
 	ASSERT(irttp != NULL, return;);
@@ -123,6 +124,7 @@ void __exit irttp_cleanup(void)
 
 	irttp = NULL;
 }
+#endif
 
 /*
  * Function irttp_open_tsap (stsap, notify)

@@ -46,7 +46,6 @@
 #include <linux/sched.h>
 #include <linux/minix_fs.h>
 #include <linux/ext2_fs.h>
-#include <linux/cramfs_fs.h>
 #include <linux/romfs_fs.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
@@ -562,7 +561,6 @@ MODULE_LICENSE("GPL");
  * We currently check for the following magic numbers:
  * 	minix
  * 	ext2
- *	cramfs
  *	romfs
  * 	gzip
  */
@@ -572,7 +570,6 @@ identify_ramdisk_image(kdev_t device, struct file *fp, int start_block)
 	const int size = 512;
 	struct minix_super_block *minixsb;
 	struct ext2_super_block *ext2sb;
-	struct cramfs_super *cramfsb;
 	struct romfs_super_block *romfsb;
 	int nblocks = -1;
 	unsigned char *buf;
@@ -583,7 +580,6 @@ identify_ramdisk_image(kdev_t device, struct file *fp, int start_block)
 
 	minixsb = (struct minix_super_block *) buf;
 	ext2sb = (struct ext2_super_block *) buf;
-	cramfsb = (struct cramfs_super *) buf;
 	romfsb = (struct romfs_super_block *) buf;
 	memset(buf, 0xe5, size);
 
@@ -614,15 +610,6 @@ identify_ramdisk_image(kdev_t device, struct file *fp, int start_block)
 		       "RAMDISK: romfs filesystem found at block %d\n",
 		       start_block);
 		nblocks = (ntohl(romfsb->size)+BLOCK_SIZE-1)>>BLOCK_SIZE_BITS;
-		goto done;
-	}
-
-	/* cramfs is at block zero too */
-	if (cramfsb->magic == CRAMFS_MAGIC) {
-		printk(KERN_NOTICE
-		       "RAMDISK: cramfs filesystem found at block %d\n",
-		       start_block);
-		nblocks = cramfsb->size >> BLOCK_SIZE_BITS;
 		goto done;
 	}
 

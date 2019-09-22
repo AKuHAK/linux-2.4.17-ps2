@@ -90,11 +90,41 @@
 #define PIO_DATA0          (RC32334_REG_BASE + 0x0600)
 #define PIO_DATA1          (RC32334_REG_BASE + 0x0610)
 
-/* DMA - see rc32334_dma.h for full list of registers */
+/* 16550 UARTs */
+#ifdef __MIPSEB__
+#define RC32300_UART0_BASE (RC32334_REG_BASE + 0x0803)
+#define RC32300_UART1_BASE (RC32334_REG_BASE + 0x0823)
+#else
+#define RC32300_UART0_BASE (RC32334_REG_BASE + 0x0800)
+#define RC32300_UART1_BASE (RC32334_REG_BASE + 0x0820)
+#endif
+#define RC32300_BASE_BAUD  (IDT_BUS_FREQ * 1000 * 1000 / 16)
 
-#define DMA01_BASE         (RC32334_REG_BASE + 0x1400)
-#define DMA23_BASE         (RC32334_REG_BASE + 0x1900)
-#define DMA_CHAN_OFFSET    0x40
+/*
+ * DMA
+ *
+ * NOTE: DMA_IO is a trick for non linear RC32300_IO_DMA stuff
+ *
+ * DMA0: 18001400
+ * DMA1: 18001440
+ * DMA2: 18001900
+ * DMA3: 18001940
+ * NB: dma number must be immediate value or variable.
+ *      It MUST NOT be a function since it would get called twice!
+ */
+#define DMA_IO(n)       (((n)>1?0x500:0)+((n)&1?0x40:0))
+ 
+#define RC32300_IO_DMA(n)       (RC32334_REG_BASE + 0x1400 + DMA_IO(n))
+#define RC32300_DMA_CONFREG(n)  RC32300_IO_DMA(n)
+#define RC32300_DMA_BASEREG(n)  (RC32300_IO_DMA(n)+0x4)
+
+#define RC32300_DMA_CURRREG(n)  (RC32300_IO_DMA(n)+0x8)
+#define RC32300_DMA_STATREG(n)  (RC32300_IO_DMA(n)+0x10)
+#define RC32300_DMA_SRCREG(n)   (RC32300_IO_DMA(n)+0x14)
+#define RC32300_DMA_DSTREG(n)   (RC32300_IO_DMA(n)+0x18)
+#define RC32300_DMA_NEXTREG(n)  (RC32300_IO_DMA(n)+0x1c)
+
+#define RC32300_DMA_IRQ(n)  (GROUP7_IRQ_BASE+5*(n))
 
 /* Expansion Interrupt Controller */
 #define IC_GROUP0_PEND     (RC32334_REG_BASE + 0x0500)
@@ -139,19 +169,6 @@
 #define GROUP14_IRQ_BASE (GROUP13_IRQ_BASE + 4)  // SPI
 
 #define RC32334_NR_IRQS  (GROUP14_IRQ_BASE + 1)
-
-/* 16550 UARTs */
-#ifdef __MIPSEB__
-#define RC32300_UART0_BASE (RC32334_REG_BASE + 0x0803)
-#define RC32300_UART1_BASE (RC32334_REG_BASE + 0x0823)
-#else
-#define RC32300_UART0_BASE (RC32334_REG_BASE + 0x0800)
-#define RC32300_UART1_BASE (RC32334_REG_BASE + 0x0820)
-#endif
-#define RC32300_BASE_BAUD  (IDT_BUS_FREQ * 1000 * 1000 / 16)
-
-#define RC32300_UART0_IRQ  GROUP5_IRQ_BASE
-#define RC32300_UART1_IRQ  GROUP6_IRQ_BASE
 
 
 #endif /* _RC32334_H_ */

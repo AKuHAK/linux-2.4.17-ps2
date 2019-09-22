@@ -18,8 +18,5 @@ sound.txt
 todc.txt
 	- documentation for common support of mk48txx and mc146818 family of 
 	realtime clocks
-Xilinx.txt
-	- info about the Virtex-II Pro chips, and how their support is
-	implemented
 zImage_layout.txt
 	- info on the kernel images for Linux/PPC

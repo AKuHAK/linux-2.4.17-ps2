@@ -112,27 +112,27 @@ static __devinitdata struct usb_device_id id_table_combined [] = {
 	{ }							/* Terminating entry */
 };
 
-static struct usb_device_id belkin_dockstation_table [] = {
+static __devinitdata struct usb_device_id belkin_dockstation_table [] = {
 	{ USB_DEVICE(BELKIN_DOCKSTATION_VID, BELKIN_DOCKSTATION_PID) },
 	{ }							/* Terminating entry */
 };
 
-static struct usb_device_id belkin_sa_table [] = {
+static __devinitdata struct usb_device_id belkin_sa_table [] = {
 	{ USB_DEVICE(BELKIN_SA_VID, BELKIN_SA_PID) },
 	{ }							/* Terminating entry */
 };
 
-static struct usb_device_id belkin_old_table [] = {
+static __devinitdata struct usb_device_id belkin_old_table [] = {
 	{ USB_DEVICE(BELKIN_OLD_VID, BELKIN_OLD_PID) },
 	{ }							/* Terminating entry */
 };
 
-static struct usb_device_id peracom_table [] = {
+static __devinitdata struct usb_device_id peracom_table [] = {
 	{ USB_DEVICE(PERACOM_VID, PERACOM_PID) },
 	{ }							/* Terminating entry */
 };
 
-static struct usb_device_id gocom232_table [] = {
+static __devinitdata struct usb_device_id gocom232_table [] = {
 	{ USB_DEVICE(GOHUBS_VID, GOHUBS_PID) },
 	{ }							/* Terminating entry */
 };

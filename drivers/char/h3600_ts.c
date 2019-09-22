@@ -45,7 +45,6 @@
 #include <linux/kmod.h>
 
 #include <asm/hardware.h>
-#include <asm/arch/pm.h>
 #include <asm/arch/h3600_hal.h>
 
 #define H3600_TS_MODULE_NAME "ts"
@@ -58,18 +57,15 @@ struct h3600_ts_general_device {
 	wait_queue_head_t     waitq;             /* Wait queue for reading       */
 	struct semaphore      lock;              /* Mutex for reading            */
 	unsigned int          usage_count;       /* Increment on each open       */
-	unsigned int          total;             /* Total events                 */
-	unsigned int          processed;
-	unsigned int          dropped;  
 };
 
-#define KEYBUF_SIZE  16
+#define KEYBUF_SIZE  4
 struct h3600_ts_key_device {
 	struct h3600_ts_general_device d;        /* Include first so we can cast to the general case */
 	unsigned char                  buf[KEYBUF_SIZE];
 };
 
-#define MOUSEBUF_SIZE 32
+#define MOUSEBUF_SIZE 8
 struct h3600_ts_mouse_device {
 	struct h3600_ts_general_device d;
 	struct h3600_ts_event          buf[MOUSEBUF_SIZE];
@@ -150,6 +146,8 @@ static unsigned char button_to_scancode[] = {
 	0, 0, 0, 0               /* pad out to 16 total bytes */
 };
 
+extern int pm_do_suspend(void);
+
 enum {
 	TS_DO_SUSPEND,
 	TS_DO_FRONTLIGHT_TOGGLE
@@ -200,7 +198,6 @@ void h3600_ts_key_event(unsigned char key)
 
 	/* Add the character to the ring buffer.  Discard if we've run out of room */
 	nhead = INCBUF(kdev->d.head, KEYBUF_SIZE);
-	kdev->d.total++;
 	if ( nhead != kdev->d.tail ) {
 		kdev->buf[kdev->d.head] = key;
 		kdev->d.head = nhead;
@@ -208,10 +205,7 @@ void h3600_ts_key_event(unsigned char key)
 			kill_fasync( &kdev->d.async_queue, SIGIO, POLL_IN );
 
 		wake_up_interruptible( &kdev->d.waitq );   
-		kdev->d.processed++;
 	}
-	else
-		kdev->d.dropped++;
 
 	/* TODO : should this be controlled by a /proc setting?
 	   I'm inclined to pass all scancodes through, even if we've done
@@ -226,7 +220,6 @@ static void h3600_ts_add_queue( struct h3600_ts_mouse_device *dev,
 	unsigned int          nhead = INCBUF( dev->d.head, MOUSEBUF_SIZE );
 	
 	/* Store the character only if there is room */
-	dev->d.total++;
 	if ( nhead != dev->d.tail ) {
 		event->x        = x;
 		event->y        = y;
@@ -238,10 +231,7 @@ static void h3600_ts_add_queue( struct h3600_ts_mouse_device *dev,
 			kill_fasync( &dev->d.async_queue, SIGIO, POLL_IN );
 
 		wake_up_interruptible( &dev->d.waitq );
-		dev->d.processed++;
 	}
-	else
-		dev->d.dropped++;
 }
 
 
@@ -440,7 +430,6 @@ static int h3600_ts_ioctl(struct inode * inode, struct file *filp,
 		if ( v.OffOnBlink > 2 )
 			return -EINVAL;
 		retval = h3600_set_led( v.OffOnBlink, v.TotalTime, v.OnTime, v.OffTime );
-		break;
 	}
 	case GET_BATTERY_STATUS:
 	{
@@ -738,28 +727,6 @@ static struct ctl_table h3600_ts_dir_table[] =
 
 static struct ctl_table_header *h3600_ts_sysctl_header = NULL;
 
-#define exproc(x) g_touchscreen.x.d.total, g_touchscreen.x.d.processed, g_touchscreen.x.d.dropped
-
-static int h3600_ts_proc_read(char *page, char **start, off_t off,
-			      int count, int *eof, void *data)
-{
-	char *p = page;
-	int len;
-
-	p += sprintf(p, "                 Total  Processed Dropped\n");
-	p += sprintf(p, "Keyboard    : %8d %8d %8d\n", exproc(key));
-	p += sprintf(p, "TS Raw      : %8d %8d %8d\n", exproc(raw));
-	p += sprintf(p, "   Filtered : %8d %8d %8d\n", exproc(filtered));
-
-	len = (p - page) - off;
-	if (len < 0)
-		len = 0;
-
-	*eof = (len <= count) ? 1 : 0;
-	*start = page + off;
-
-	return len;
-}
 
 /***********************************************************************************/
 /*       Initialization                                                            */
@@ -839,7 +806,6 @@ int __init h3600_ts_init_module(void)
 	h3600_ts_init_device(&g_touchscreen.filtered.d);
 
 	h3600_ts_sysctl_header = register_sysctl_table(h3600_ts_dir_table, 0);
-	create_proc_read_entry("ts", 0, NULL, h3600_ts_proc_read, NULL);
 
 	h3600_ts_init_calibration();
 	h3600_ts_reset_filters();
@@ -857,10 +823,8 @@ void h3600_ts_cleanup_module(void)
 	h3600_unregister_blank_callback( h3600_ts_blank_helper );
 	h3600_hal_unregister_driver( &g_driver_ops );
 
-	del_timer_sync(&ts_timer);
         flush_scheduled_tasks();
-
-	remove_proc_entry("ts", NULL);
+	del_timer_sync(&ts_timer);
         unregister_sysctl_table(h3600_ts_sysctl_header);
 
         devfs_unregister(devfs_ts);

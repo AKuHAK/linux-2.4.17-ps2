@@ -198,7 +198,7 @@ int __init irda_init(void)
 	return 0;
 }
 
-void __exit irda_cleanup(void)
+static void __exit irda_cleanup(void)
 {
 #ifdef CONFIG_SYSCTL
 	irda_sysctl_unregister();

@@ -33,7 +33,7 @@
 #include <asm/arch/hardware.h>
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/sizes.h>
+
 #include <asm/arch/ether00.h>
 #include <asm/arch/tdkphy.h>
 
@@ -41,13 +41,6 @@
 MODULE_AUTHOR("Clive Davies");
 MODULE_DESCRIPTION("Altera Ether00 IP core driver");
 MODULE_LICENSE("GPL");
-
-static long base=0x60000000;
-static int irq=0x1;
-static int phy_irq=0x2;
-MODULE_PARM(base,"l");
-MODULE_PARM(irq,"i");
-MODULE_PARM(phy_irq,"i");
 
 #define PKT_BUF_SZ 1536 /* Size of each rx buffer */
 
@@ -58,14 +51,14 @@ MODULE_PARM(phy_irq,"i");
 
 #define ETHER00_BASE	0
 #define	ETHER00_TYPE
-#define ETHER00_PHYS_BASE 0x80000000
-#define ETHER00_IRQ  0x1
+
 
 
 
 /* typedefs */
 
 /* The definition of the driver control structure */
+
 #define RX_NUM_BUFF     10
 #define RX_NUM_FDESC    10
 #define TX_NUM_FDESC    10
@@ -104,7 +97,8 @@ static const char vendor_id[2]={0x07,0xed};
 static int ether00_write_phy(struct net_device *dev, short address, short value)
 {
 	volatile int count = 1024;
-	writew(value,ETHER_MD_DATA(dev->base_addr));writew( ETHER_MD_CA_BUSY_MSK |
+	writew(value,ETHER_MD_DATA(dev->base_addr));
+	writew( ETHER_MD_CA_BUSY_MSK |
 		ETHER_MD_CA_WR_MSK |
 		(address & ETHER_MD_CA_ADDR_MSK),
 		ETHER_MD_CA(dev->base_addr));
@@ -361,22 +355,26 @@ static void ether00_int( int irq_num, void* dev_id, struct pt_regs* regs)
 			{
 				/* This frame is ready for processing */
 				/*find the corresponding buffer in the bufferlist */
-				blist_ent_ptr=priv->rx_blist_vp+fda_ent_ptr->bd.BDStat;
 				skb=(struct sk_buff*)fda_ent_ptr->fd.FDSystem;
 
+				/* Find the corresponding buffer */
+				blist_ent_ptr=priv->rx_blist_vp+fda_ent_ptr->bd.BDStat;
 
 				/* Pass this skb up the stack */
 				skb->dev=dev;
 				skb_put(skb,fda_ent_ptr->fd.FDLength);
 				skb->protocol=eth_type_trans(skb,dev);
-				skb->ip_summed=CHECKSUM_UNNECESSARY;
+				skb->ip_summed=CHECKSUM_HW
+;
 				result=netif_rx(skb);
 				/* Update statistics */
 				priv->stats.rx_packets++;
 				priv->stats.rx_bytes+=fda_ent_ptr->fd.FDLength;
 				/* Free the FDA entry */
-				fda_ent_ptr->bd.BDStat=0xff;
 				fda_ent_ptr->fd.FDCtl=FDCTL_COWNSFD_MSK;
+
+				//printk("%d:rx: fda=%#x skb=%#x pa_data=%#x skb_data=%#x len=%d sq=%d\n",jiffies,
+				//fda_ent_ptr,skb,blist_ent_ptr->bd.BuffData,skb->data,fda_ent_ptr->fd.FDLength,*(skb->data+0x28));
 
 				/* Allocate a new skb and point the bd entry to it */
 				skb=dev_alloc_skb(PKT_BUF_SZ);
@@ -647,65 +645,10 @@ static void ether00_set_multicast(struct net_device* dev)
 }
 
 
-static void ether00_get_ethernet_address(struct net_device* dev)
-{
-	struct mtd_info *mymtd=NULL;
-	size_t retlen;
-
-	/*
-	 * For the Epxa10 dev board (camelot), the ethernet MAC
-	 * address is of the form  00:aa:aa:00:xx:xx where
-	 * 00:aa:aa is the Altera vendor ID and xx:xx is the
-	 * last 2 bytes of the board serial number, as programmed
-	 * into the OTP area of the flash device on EBI1. If this
-	 * isn't an expa10 dev board, or there's no mtd support to
-	 * read the serial number from flash then we'll force the
-	 * use to set their own mac address using ifconfig.
-	 */
-
-#ifdef CONFIG_ARCH_CAMELOT
-#ifdef CONFIG_MTD
-	/* get the mtd_info structure for the first mtd device*/
-	mymtd=get_mtd_device(NULL,0);
-	if(!mymtd || !mymtd->read_user_prot_reg){
-		printk(KERN_WARNING "%s: Failed to read MAC address from flash\n",dev->name);
-	}else{
-		mymtd->read_user_prot_reg(mymtd,2,1,&retlen,&dev->dev_addr[5]);
-		mymtd->read_user_prot_reg(mymtd,3,1,&retlen,&dev->dev_addr[4]);
-		mymtd->read_user_prot_reg(mymtd,4,1,&retlen,&dev->dev_addr[3]);
-		dev->dev_addr[2]=vendor_id[1];
-		dev->dev_addr[1]=vendor_id[0];
-		dev->dev_addr[0]=0;
-	}
-	
-#else
-	printk(KERN_WARNING "%s: MTD support required to read MAC address from EPXA10 dev board\n", dev->name);
-#endif
-#endif
-
-}
-
 static int ether00_open(struct net_device* dev)
 {
 	int result,tmp;
-	struct net_priv* priv;
 
-	dev->base_addr=ioremap_nocache(base,SZ_4K);
-
-	dev->irq=irq;
-
-	dev->priv=kmalloc(sizeof(struct net_priv),GFP_KERNEL);
-	if(!dev->priv)
-		return -ENOMEM;
-	memset(dev->priv,0,sizeof(struct net_priv));
-	priv=(struct net_priv*)dev->priv;
-	priv->tq_memupdate.routine=ether00_mem_update;
-	priv->tq_memupdate.data=(void*) dev;
-
-	if(!is_valid_ether_addr(dev->dev_addr)){
-		/* Try getting the device address from flash */
-		ether00_get_ethernet_address(dev);
-	}
 	if (!is_valid_ether_addr(dev->dev_addr))
 		return -EINVAL;
 
@@ -714,7 +657,7 @@ static int ether00_open(struct net_device* dev)
 	if(result)
 		return result;
 
-	result=request_irq(phy_irq,ether00_phy_int,0,"ether00_phy",dev);
+	result=request_irq(2,ether00_phy_int,0,"ether00_phy",dev);
 	if(result)
 		return result;
 
@@ -826,7 +769,7 @@ static int ether00_stop(struct net_device* dev)
 
 	/* Free up system resources */
 	free_irq(dev->irq,dev);
-	free_irq(phy_irq,dev);
+	free_irq(2,dev);
 	iounmap(priv->dma_data);
 	kfree(priv);
 
@@ -834,8 +777,56 @@ static int ether00_stop(struct net_device* dev)
 }
 
 
+static void ether00_get_ethernet_address(struct net_device* dev)
+{
+	struct mtd_info *mymtd=NULL;
+	int i;
+	size_t retlen;
+
+	/*
+	 * For the Epxa10 dev board (camelot), the ethernet MAC
+	 * address is of the form  00:aa:aa:00:xx:xx where
+	 * 00:aa:aa is the Altera vendor ID and xx:xx is the
+	 * last 2 bytes of the board serial number, as programmed
+	 * into the OTP area of the flash device on EBI1. If this
+	 * isn't an expa10 dev board, or there's no mtd support to
+	 * read the serial number from flash then we'll force the
+	 * use to set their own mac address using ifconfig.
+	 */
+
+#ifdef CONFIG_ARCH_CAMELOT
+#ifdef CONFIG_MTD
+	/* get the mtd_info structure for the first mtd device*/
+	for(i=0;i<MAX_MTD_DEVICES;i++){
+		mymtd=get_mtd_device(NULL,i);
+		if(!strcmp(mymtd->name,"master"))
+			break;
+	}
+
+	if(!mymtd || !mymtd->read_oob){
+		printk(KERN_WARNING "%s: Failed to read MAC address from flash\n",dev->name);
+	}else{
+		mymtd->read_oob(mymtd,10,1,&retlen,&dev->dev_addr[5]);
+		mymtd->read_oob(mymtd,11,1,&retlen,&dev->dev_addr[4]);
+		dev->dev_addr[3]=0;
+		dev->dev_addr[2]=vendor_id[1];
+		dev->dev_addr[1]=vendor_id[0];
+		dev->dev_addr[0]=0;
+	}
+#else
+	printk(KERN_WARNING "%s: MTD support required to read MAC address from EPXA10 dev board\n", dev->name);
+#endif
+#endif
+
+	if (!is_valid_ether_addr(dev->dev_addr))
+		printk("%s: Invalid ethernet MAC address.  Please set using "
+			"ifconfig\n", dev->name);
+
+}
+
 static int ether00_init(struct net_device* dev)
 {
+	struct net_priv* priv;
 	ether_setup(dev);
 
 	dev->open=ether00_open;
@@ -843,6 +834,19 @@ static int ether00_init(struct net_device* dev)
 	dev->set_multicast_list=ether00_set_multicast;
 	dev->hard_start_xmit=ether00_tx;
 	dev->get_stats=ether00_stats;
+
+	dev->base_addr=(unsigned int)IO_ADDRESS(EXC_PLD_BLOCK1_BASE);
+	dev->irq=1;
+
+	dev->priv=kmalloc(sizeof(struct net_priv),GFP_KERNEL);
+	if(!dev->priv)
+		return -ENOMEM;
+	memset(dev->priv,0,sizeof(struct net_priv));
+	priv=(struct net_priv*)dev->priv;
+	priv->tq_memupdate.routine=ether00_mem_update;
+	priv->tq_memupdate.data=(void*) dev;
+
+	ether00_get_ethernet_address(dev);
 
 	SET_MODULE_OWNER(dev);
 

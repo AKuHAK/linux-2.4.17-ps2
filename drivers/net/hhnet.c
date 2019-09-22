@@ -30,9 +30,6 @@
 #include "hhnet_drawb.h"
 #include "hhnet_dma.h"
 
-MODULE_AUTHOR("MontaVista Software <source@mvista.com>");
-MODULE_DESCRIPTION("MontaVista Net Backpanel Driver (routing layer)");
-MODULE_LICENSE("GPL");
 
 #if defined(CONFIG_HHNET_DMA) || defined(CONFIG_HHNET_DMA_MODULE)
 #define HHNET_USE_DMA

@@ -144,7 +144,6 @@ static	int num_irqs = DEFAULT_NUM_IRQS;
 /* module parameter defintions */
 MODULE_AUTHOR("MontaVista Software, Inc (source@mvista.com)");
 MODULE_DESCRIPTION("8240/MPC107 DMA Driver for MontaVista(tm) Net");
-MODULE_LICENSE("GPL");
 MODULE_PARM(pool_size, "i");
 MODULE_PARM_DESC(pool_size, "DMA descriptor pool size (default="\
 		 __MODULE_STRING(MAX_POOL_SIZE) ", range="\

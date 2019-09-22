@@ -21,7 +21,6 @@
 #define __H3600_TS_H__
 
 #include <linux/ioctl.h>
-#include <linux/h3600_keyboard.h>
 
 enum h3600_ts_minor_devices {
 	TS_MINOR    = 0,
@@ -74,26 +73,21 @@ typedef struct therm_dev {
 /* These should match the apm_bios.h definitions */
 #define H3600_AC_STATUS_AC_OFFLINE	0x00
 #define H3600_AC_STATUS_AC_ONLINE	0x01
-#define H3600_AC_STATUS_AC_BACKUP	0x02   /* What does this mean? */
+#define H3600_AC_STATUS_AC_BACKUP	0x02
 #define H3600_AC_STATUS_AC_UNKNOWN	0xff
 
-/* These bitfields are rarely "or'd" together */
+/* These are bit fields OR'd together */
 #define H3600_BATT_STATUS_HIGH		0x01
 #define H3600_BATT_STATUS_LOW		0x02
 #define H3600_BATT_STATUS_CRITICAL	0x04
 #define H3600_BATT_STATUS_CHARGING	0x08
-#define H3600_BATT_STATUS_CHARGE_MAIN   0x10
-#define H3600_BATT_STATUS_DEAD          0x20   /* Battery will not charge */
-#define H3600_BATT_STATUS_FULL          0x40   /* Battery fully charged (and connected to AC) */
 #define H3600_BATT_STATUS_NOBATT	0x80
 #define H3600_BATT_STATUS_UNKNOWN	0xff
 
 struct battery_data {
 	unsigned char  chemistry;
 	unsigned char  status;
-	unsigned short voltage;    /* Voltage for battery #0; unknown for battery #1 */
-	unsigned short percentage; /* Percentage of full charge */
-	unsigned short life;       /* Life remaining in minutes */
+	unsigned short voltage;
 };
 
 struct h3600_battery {
@@ -211,5 +205,17 @@ struct h3600_ts_contrast {            /* Only useful on H3100 model */
 #define TS_SET_BACKLIGHT        _IOW(IOC_H3600_TS_MAGIC, 20, struct h3600_ts_backlight)
 #define TS_GET_CONTRAST         _IOR(IOC_H3600_TS_MAGIC, 21, struct h3600_ts_contrast)
 #define TS_SET_CONTRAST         _IOW(IOC_H3600_TS_MAGIC, 21, struct h3600_ts_contrast)
+
+#define H3600_SCANCODE_RECORD   120
+#define H3600_SCANCODE_CALENDAR 122
+#define H3600_SCANCODE_CONTACTS 123
+#define H3600_SCANCODE_Q        124
+#define H3600_SCANCODE_START    125
+#define H3600_SCANCODE_UP       103 /* keycode up */
+#define H3600_SCANCODE_RIGHT    106 /* keycode right */
+#define H3600_SCANCODE_LEFT     105 /* keycode left */
+#define H3600_SCANCODE_DOWN     108 /* keycode down */
+#define H3600_SCANCODE_ACTION   96  /* keycode keypad enter */ /* 28 is regular enter, 126 is rocker enter */
+#define H3600_SCANCODE_SUSPEND  121  /* keycode powerdown */
 
 #endif

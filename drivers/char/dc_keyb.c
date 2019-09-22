@@ -1,5 +1,5 @@
 /*
- *	$Id: dc_keyb.c,v 1.1.1.1 2001/10/15 20:44:57 mrbrown Exp $
+ *	$Id: dc_keyb.c,v 1.1 2001/12/12 23:44:45 jsiegel Exp $
  *	linux/drivers/char/dc_keyb.c
  *	taken from linux/drivers/char/pc_keyb.c
  */

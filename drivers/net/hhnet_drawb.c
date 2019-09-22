@@ -32,10 +32,6 @@
 #include "hhnet_drawb.h"
 #include "hhnet.h"
 
-MODULE_AUTHOR("MontaVista Software <source@mvista.com>");
-MODULE_DESCRIPTION("MontaVista Net Backpanel Driver (21554 driver)");
-MODULE_LICENSE("GPL");
-
 #undef USE_TASKLET
 #undef USE_SCHEDULE_TASK
 

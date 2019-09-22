@@ -12,7 +12,7 @@
 // XXX todo
 // timeout sleep?
 
-/* $Id: i2c-algo-8260.c,v 1.1 2001/12/20 21:03:33 alowe Exp $ */
+/* $Id: i2c-algo-8260.c,v 1.2 2002/01/11 00:17:01 alowe Exp $ */
 
 #include <linux/kernel.h>
 #include <linux/module.h>

@@ -1,5 +1,5 @@
 /*
- *	$Id: maple_keyb.c,v 1.1.1.1.2.1 2001/12/06 15:23:03 mrbrown Exp $
+ *	$Id: maple_keyb.c,v 1.1 2001/12/12 23:44:45 jsiegel Exp $
  * 	SEGA Dreamcast keyboard driver
  *	Based on drivers/usb/usbkbd.c
  */

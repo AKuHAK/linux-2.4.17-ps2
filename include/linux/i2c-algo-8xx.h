@@ -2,7 +2,7 @@
 /* i2c-algo-8xx.h i2c driver algorithms for MPX8XX CPM			     */
 /* ------------------------------------------------------------------------- */
 
-/* $Id: i2c-algo-8xx.h,v 1.2 2001/12/11 15:20:21 trini Exp $ */
+/* $Id: i2c-algo-8xx.h,v 1.3 2001/12/20 21:09:50 alowe Exp $ */
 
 #ifndef I2C_ALGO_8XX_H
 #define I2C_ALGO_8XX_H 1

@@ -1,7 +1,7 @@
 #ifndef __MAPLE_H
 #define __MAPLE_H
 /*
- *	$Id: maple.h,v 1.1.1.1 2001/10/15 20:45:12 mrbrown Exp $
+ *	$Id: maple.h,v 1.1 2001/12/12 23:44:46 jsiegel Exp $
  *	MAPLE Bus device drivers
  *
  * 	Register definitions are taken from Marcus Comstedt's

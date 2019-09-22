@@ -295,8 +295,7 @@ static int usblp_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 {
 	struct usblp *usblp = file->private_data;
 	int length, err;
-	unsigned char lpstatus;
-	int status;
+	unsigned char status;
 	int retval = 0;
 
 	down (&usblp->sem);
@@ -350,13 +349,12 @@ static int usblp_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 		switch (cmd) {
 
 			case LPGETSTATUS:
-				if (usblp_read_status(usblp, &lpstatus)) {
+				if (usblp_read_status(usblp, &status)) {
 					err("usblp%d: failed reading printer status", usblp->minor);
 					retval = -EIO;
 					goto done;
 				}
-				status = lpstatus;
-				if (copy_to_user ((int *)arg, &status, sizeof(int)))
+				if (copy_to_user ((unsigned char *)arg, &status, 1))
 					retval = -EFAULT;
 				break;
 

@@ -4,8 +4,7 @@
 
 O_TARGET := i2c.o
 
-export-objs	:= i2c-core.o i2c-algo-bit.o i2c-algo-pcf.o i2c-proc.o i2c-algo-8xx.o i2c-algo-ibm_ocp.o
-mod-subdirs     := xilinx_iic
+export-objs	:= i2c-core.o i2c-algo-bit.o i2c-algo-pcf.o i2c-proc.o i2c-algo-8xx.o i2c-algo-ppc405.o
 
 obj-$(CONFIG_I2C)		+= i2c-core.o
 obj-$(CONFIG_I2C_CHARDEV)	+= i2c-dev.o
@@ -19,10 +18,8 @@ obj-$(CONFIG_I2C_PROC)		+= i2c-proc.o
 obj-$(CONFIG_I2C_ALGO8XX)	+= i2c-algo-8xx.o i2c-rpx.o
 obj-$(CONFIG_I2C_ALGO8260)	+= i2c-algo-8260.o
 obj-$(CONFIG_I2C_KEYWEST)	+= i2c-keywest.o
-obj-$(CONFIG_I2C_IBM_OCP_ALGO)	+= i2c-algo-ibm_ocp.o
-obj-$(CONFIG_I2C_IBM_OCP_ADAP)	+= i2c-adap-ibm_ocp.o
-subdir-$(CONFIG_I2C_XILINX)	+= xilinx_iic
-obj-$(CONFIG_I2C_XILINX)	+= xilinx_iic/xilinx_iic.o
+obj-$(CONFIG_I2C_PPC405_ALGO)	+= i2c-algo-ppc405.o
+obj-$(CONFIG_I2C_PPC405_ADAP)	+= i2c-adap-ppc405.o
 
 obj-$(CONFIG_I2C_PFS168)	+= i2c-pfs168.o
 obj-$(CONFIG_I2C_M41T11)	+= m41t11.o

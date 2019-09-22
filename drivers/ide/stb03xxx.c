@@ -147,7 +147,7 @@ static int redwood_config_drive_for_dma(ide_drive_t *drive)
 			speed = XFER_SW_DMA_2;
 			func = ide_dma_on;
 		} else {
-			speed = XFER_PIO_0 +
+			speed = XFER_PIO_0 + 
 				ide_get_best_pio_mode(drive, 255, 5, NULL);
 		}
 	}
@@ -215,7 +215,7 @@ void redwood_ide_dma_intr (int irq, void *dev_id, struct pt_regs *regs)
 		IDE_DMASR_TC | IDE_DMASR_EOT | IDE_DMASR_ERR | IDE_DMASR_CT);
 
 	/* clear UIC bit */
-	mtdcr(DCRN_UIC_SR(UIC0), (0x80000000 >> IDE_DMA_INT));
+	mtdcr(DCRN_UIC0_SR, (0x80000000 >> IDE_DMA_INT));
 }
 
 static int redwood_ide_dmaproc(ide_dma_action_t func, ide_drive_t *drive)
@@ -242,7 +242,7 @@ static int redwood_ide_dmaproc(ide_dma_action_t func, ide_drive_t *drive)
 				| IDE_DMASR_CT);
 
 		/* level-sensitive (UICTR bit = 0) and positive-active (UICPR bit = 1) */
-		mtdcr(DCRN_UIC_PR(UIC0), (mfdcr(DCRN_UIC_PR(UIC0)) | UIC_D2));
+		mtdcr(DCRN_UIC0_PR, (mfdcr(DCRN_UIC0_PR) | UIC_D2));
 		save_flags(flags);
 		cli();
 		if ( ide_request_irq(IDE_DMA_INT, &redwood_ide_dma_intr, SA_INTERRUPT,
@@ -359,7 +359,9 @@ static int redwood_ide_dmaproc(ide_dma_action_t func, ide_drive_t *drive)
 
 	case ide_dma_bad_drive:
 	case ide_dma_good_drive:
+	//	return check_drive_lists(drive, (func == ide_dma_good_drive));
 	case ide_dma_verbose:
+	//	return report_drive_dmaing(drive);
 	case ide_dma_timeout:
 	case ide_dma_retune:
 	case ide_dma_lostirq:
@@ -379,7 +381,6 @@ int nonpci_ide_default_irq(ide_ioreg_t base)
 {
 	return IDE_INTRQ;
 }
-
 
 void
 nonpci_ide_init_hwif_ports(hw_regs_t *hw, ide_ioreg_t data_port, ide_ioreg_t ctrl_port, int *irq)
@@ -404,6 +405,13 @@ nonpci_ide_init_hwif_ports(hw_regs_t *hw, ide_ioreg_t data_port, ide_ioreg_t ctr
 	xilinx = reg | 0x00040000;
 	reg = reg | IDE_CMD_OFF;
 
+#if 0
+	printk("orig xilinx %08x, reg %08x\n", xilinx, reg);
+	reg = 0xf2100000;
+	xilinx = 0xf2040000;
+	printk("before ioremap ioaddr %x, xilinx %x\n", reg, xilinx);
+#endif
+
 	ioaddr = (unsigned long)ioremap(reg, 0x10);
 	xilinx = (unsigned long)ioremap(xilinx, 0x10);
 
@@ -414,6 +422,15 @@ nonpci_ide_init_hwif_ports(hw_regs_t *hw, ide_ioreg_t data_port, ide_ioreg_t ctr
 		ioaddr += 2;
 	}
 	hw->io_ports[IDE_CONTROL_OFFSET] = (unsigned long)ioremap(REDWOOD_IDE_CTRL,2);
+
+#if 0
+	/* ftr revisit
+	** Is this needed?  If so, shouldn't just slam a value in, should
+	** read existing value and just modify the bit we care about.
+	** Note that this impacts other devices, such as ethernet
+	*/
+	mtdcr(DCRN_BRCR2, 0x207cfffe);	/* RE=1 */
+#endif
 
 	/* add RE & OEN to value set by boot rom */
 	mtdcr(DCRN_BRCR3, 0x407cfffe);
@@ -449,7 +466,7 @@ nonpci_ide_init_hwif_ports(hw_regs_t *hw, ide_ioreg_t data_port, ide_ioreg_t ctr
 	mtdcr(DCRN_DMACR2, 0x4d600000 | dmacr_def);
 	mtdcr(DCRN_DMASR, 0xffffffff); /* clear status register */
 
-	/* init CIC select2 reg to connect external DMA port 3 to internal
+	/* init CIC select2 reg to connect external DMA port 3 to internal 
 	 * DMA channel 2
 	 */
 	mtdcr(DCRN_DMAS2, (mfdcr(DCRN_DMAS2) & 0xfffffff0) | 0x00000002);
@@ -458,9 +475,14 @@ nonpci_ide_init_hwif_ports(hw_regs_t *hw, ide_ioreg_t data_port, ide_ioreg_t ctr
 
 	ide_hwifs[index].tuneproc = &redwood_ide_tune_drive;
 	ide_hwifs[index].drives[0].autotune = 1;
+/*
+	ide_hwifs[index].drives[1].autotune = 1;
+*/
+
 	ide_hwifs[index].autodma = 1;
 	ide_hwifs[index].dmaproc = &redwood_ide_dmaproc;
 	ide_hwifs[index].speedproc = &redwood_ide_tune_chipset;
+
 	ide_hwifs[index].noprobe = 0;
 
 	memcpy(ide_hwifs[index].io_ports, hw->io_ports, sizeof(hw->io_ports));

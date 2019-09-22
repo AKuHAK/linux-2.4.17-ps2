@@ -704,10 +704,6 @@ int tracer_ioctl(struct inode* pmInode,
       lStartEvent.ArchType      = TRACE_ARCH_TYPE_PPC_8xx;
 #elif defined(CONFIG_PPC_ISERIES)
       lStartEvent.ArchType      = TRACE_ARCH_TYPE_PPC_iSeries;
-#elif defined(CONFIG_ARM)
-      lStartEvent.ArchType      = TRACE_ARCH_TYPE_ARM;
-#elif defined(CONFIG_MIPS)
-      lStartEvent.ArchType      = TRACE_ARCH_TYPE_MIPS;      
 #endif
       lStartEvent.SystemType    = TRACE_SYS_TYPE_VANILLA_LINUX;
       lStartEvent.MajorVersion  = TRACER_VERSION_MAJOR;

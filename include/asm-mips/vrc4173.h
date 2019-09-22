@@ -1,4 +1,4 @@
-/* $Id: vrc4173.h,v 1.1 2001/08/02 02:27:55 jsun Exp $
+/* $Id: vrc4173.h,v 1.1 2002/01/17 01:05:06 jsun Exp $
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive

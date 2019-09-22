@@ -106,7 +106,7 @@ static void empeg_set_termios		(struct usb_serial_port *port, struct termios *ol
 static void empeg_write_bulk_callback	(struct urb *urb);
 static void empeg_read_bulk_callback	(struct urb *urb);
 
-static struct usb_device_id id_table [] = {
+static __devinitdata struct usb_device_id id_table [] = {
 	{ USB_DEVICE(EMPEG_VENDOR_ID, EMPEG_PRODUCT_ID) },
 	{ }					/* Terminating entry */
 };

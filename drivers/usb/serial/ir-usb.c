@@ -79,7 +79,7 @@ static void ir_read_bulk_callback (struct urb *urb);
 static void ir_set_termios (struct usb_serial_port *port, struct termios *old_termios);
 
 
-static struct usb_device_id id_table [] = {
+static __devinitdata struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x050f, 0x0180) },		/* KC Technology, KC-180 */
 	{ USB_DEVICE(0x08e9, 0x0100) },		/* XTNDAccess */
 	{ USB_DEVICE(0x09c4, 0x0011) },		/* ACTiSys ACT-IR2000U */

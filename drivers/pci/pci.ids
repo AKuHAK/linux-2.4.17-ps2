@@ -647,7 +647,6 @@
 	5427  ALI PCI to AGP Bridge
 	5451  ALI M5451 PCI AC-Link Controller Audio Device
 	5453  ALI M5453 PCI AC-Link Controller Modem Device
-	5457  ALI M5457 PCI DC-97 Controller Modem 
 	7101  ALI M7101 PCI PMU Power Management Controller
 		10b9 7101  ALI M7101 PCI PMU Power Management Controller
 1028  Dell Computer Corporation
@@ -775,11 +774,6 @@
 102f  Toshiba America
 	0009  r4x00
 	0020  ATM Meteor 155
-	0105  TC86C001 IDE
-	0106  TC86C001 USB Host
-	0107  TC86C001 USB Device
-	0108  TC86C001 I2C/SIO/GPIO
-	0180  TX4927
 1030  TMC Research
 1031  Miro Computer Products AG
 	5601  DC20 ASIC

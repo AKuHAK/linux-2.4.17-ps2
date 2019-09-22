@@ -1,4 +1,4 @@
-/*      $Id: lirc.h,v 1.1 2001/12/27 19:46:07 jamey Exp $      */
+/*      $Id: lirc.h,v 1.1 2002/01/28 19:28:45 gdavis Exp $      */
 
 #ifndef _LINUX_LIRC_H
 #define _LINUX_LIRC_H

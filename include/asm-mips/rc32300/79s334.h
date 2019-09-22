@@ -36,8 +36,7 @@
 
 /* NVRAM */
 #define NVRAM_BASE         0x12000000
-#define NVRAM_ENVSIZE_OFF  4
-#define NVRAM_ENVSTART_OFF 0x40
+#define NVRAM_SIZE         512
 
 /* LCD 4-digit display */
 #define LCD_CLEAR          0x14000400
@@ -45,6 +44,8 @@
 #define LCD_DIGIT1         0x14000008
 #define LCD_DIGIT2         0x14000007
 #define LCD_DIGIT3         0x14000003
+
+extern int idtprintf(const char *fmt, ...);
 
 /* Interrupts routed on 79S334A board (see rc32334.h) */
 #define RC32334_SCC8530_IRQ  2

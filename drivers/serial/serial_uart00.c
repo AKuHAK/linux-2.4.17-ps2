@@ -21,8 +21,14 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- *  $Id: serial_uart00.c,v 1.3.2.4 2002/03/27 23:32:40 rmk Exp $
+ *  $Id: serial_uart00.c,v 1.4 2001/11/24 23:24:46 rmk Exp $
  *
+ * This is a generic driver for ARM UART00-type serial ports.  They
+ * have a lot of 16550-like features, but are not register compatable.
+ * Note that although they do have CTS, DCD and DSR inputs, they do
+ * not have an RI input, nor do they have DTR or RTS outputs.  If
+ * required, these have to be supplied via some other means (eg, GPIO)
+ * and hooked into this driver.
  */
 #include <linux/config.h>
 #include <linux/module.h>
@@ -45,15 +51,12 @@
 #include <linux/serial.h>
 #include <linux/console.h>
 #include <linux/sysrq.h>
-#include <linux/pld/pld_hotswap.h>
-#include <linux/proc_fs.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>
 #include <asm/bitops.h>
-#include <asm/sizes.h>
 
 #if defined(CONFIG_SERIAL_UART00_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
@@ -65,18 +68,17 @@
 #include <asm/arch/uart00.h>
 #include <asm/arch/int_ctrl00.h>
 
-#undef DEBUG
 #define UART_NR		2
 
 #define SERIAL_UART00_NAME	"ttyUA"
-//#define SERIAL_UART00_MAJOR	0
-#define SERIAL_UART00_MINOR	0  
+#define SERIAL_UART00_MAJOR	204
+#define SERIAL_UART00_MINOR	16      /* Temporary - will change in future */
 #define SERIAL_UART00_NR	UART_NR
 #define UART_PORT_SIZE 0x50
 
 #define CALLOUT_UART00_NAME	"cuaua"
-//#define CALLOUT_UART00_MAJOR	0
-#define CALLOUT_UART00_MINOR	0    
+#define CALLOUT_UART00_MAJOR	205
+#define CALLOUT_UART00_MINOR	16      /* Temporary - will change in future */
 #define CALLOUT_UART00_NR	UART_NR
 
 
@@ -84,8 +86,8 @@
 static struct tty_driver normal, callout;
 static struct tty_struct *uart00_table[UART_NR];
 static struct termios *uart00_termios[UART_NR], *uart00_termios_locked[UART_NR];
+//static struct uart_state uart00_state[UART_NR];
 static struct console uart00_console;
-static struct uart_driver uart00_reg;
 
 #define UART00_ISR_PASS_LIMIT	256
 
@@ -164,6 +166,7 @@ uart00_rx_chars(struct uart_info *info, struct pt_regs *regs)
 		if (rds & (UART_RDS_BI_MSK |UART_RDS_FE_MSK|
 			   UART_RDS_PE_MSK |UART_RDS_PE_MSK))
 			goto handle_error;
+
 		if (uart_handle_sysrq_char(info, ch, regs))
 			goto ignore_char;
 
@@ -270,8 +273,11 @@ static void uart00_start_tx(struct uart_port *port, u_int nonempty, u_int from_t
 {
 	struct uart_info *info=(struct uart_info*)(port->iobase);
 
-	UART_PUT_IES(port,UART_IES_TIE_MSK );		
-	uart00_tx_chars(info);
+	if (nonempty) {
+		UART_PUT_IES(port,UART_IES_TIE_MSK );		
+		uart00_tx_chars(info);
+		
+	}
 }
 
 static void uart00_modem_status(struct uart_info *info)
@@ -408,7 +414,7 @@ static void uart00_change_speed(struct uart_port *port, u_int cflag, u_int iflag
 	u_int uart_mc=0, old_ies;
 	unsigned long flags;
 
-#ifdef DEBUG
+#if DEBUG
 	printk("uart00_set_cflag(0x%x) called\n", cflag);
 #endif
 	/* byte size and parity */
@@ -458,6 +464,7 @@ static void uart00_change_speed(struct uart_port *port, u_int cflag, u_int iflag
 
 
 	/* Set baud rate */
+	quot+=1; /* Correction for generic quotient calculation */
 	UART_PUT_DIV_LO(port, (quot & 0xff));
 	UART_PUT_DIV_HI(port, ((quot & 0xf00) >> 8));
    
@@ -471,6 +478,19 @@ static void uart00_change_speed(struct uart_port *port, u_int cflag, u_int iflag
 static int uart00_startup(struct uart_port *port, struct uart_info *info)
 {
 	int retval;
+	int quot;
+
+	/*
+	 * Allocate the IRQ
+	 */
+	retval = request_irq(port->irq, uart00_int, 0, "uart00", info);
+	if (retval)
+		return retval;
+
+	port->ops->set_mctrl(port, info->mctrl);
+	
+	quot=uart_calculate_quot(info,38400);
+	uart00_change_speed(port,CS8,IGNPAR,quot);
 
 	/* 
 	 * Use iobase to store a pointer to info. We need this to start a 
@@ -481,13 +501,6 @@ static int uart00_startup(struct uart_port *port, struct uart_info *info)
 	port->iobase=(u_int)info;
 	
 	/*
-	 * Allocate the IRQ
-	 */
-	retval = request_irq(port->irq, uart00_int, 0, "uart00", info);
-	if (retval)
-		return retval;
-
-	/*
 	 * Finally, enable interrupts. Use the TII interrupt to minimise 
 	 * the number of interrupts generated. If higher performance is 
 	 * needed, consider using the TI interrupt with a suitable FIFO
@@ -495,11 +508,19 @@ static int uart00_startup(struct uart_port *port, struct uart_info *info)
 	 */
 	UART_PUT_IES(port, UART_IES_RE_MSK | UART_IES_TIE_MSK);
 
+
+	
+
 	return 0;
 }
 
 static void uart00_shutdown(struct uart_port *port, struct uart_info *info)
 {
+	/*
+	 * Free the interrupt
+	 */
+	free_irq(port->irq, info);
+
 	/*
 	 * disable all interrupts, disable the port
 	 */
@@ -507,16 +528,11 @@ static void uart00_shutdown(struct uart_port *port, struct uart_info *info)
 
 	/* disable break condition and fifos */
 	UART_PUT_MCR(port, UART_GET_MCR(port) &~UART_MCR_BR_MSK);
-
-	/*
-	 * Free the interrupt
-	 */
-	free_irq(port->irq, info);
 }
 
 static const char *uart00_type(struct uart_port *port)
 {
-	return port->type == PORT_UART00 ? "Altera UART00" : NULL;
+	return port->type == PORT_UART00 ? "UART00" : NULL;
 }
 
 /*
@@ -525,12 +541,6 @@ static const char *uart00_type(struct uart_port *port)
 static void uart00_release_port(struct uart_port *port)
 {
 	release_mem_region(port->mapbase, UART_PORT_SIZE);
-
-#ifdef CONFIG_ARCH_CAMELOT
-	if(port->membase!=(void*)IO_ADDRESS(EXC_UART00_BASE)){
-		iounmap(port->membase);
-	}
-#endif
 }
 
 /*
@@ -538,20 +548,8 @@ static void uart00_release_port(struct uart_port *port)
  */
 static int uart00_request_port(struct uart_port *port)
 {
-	int result;
-
-	result = request_mem_region(port->mapbase, UART_PORT_SIZE,
-				    "serial_uart00") != NULL ? 0 : -EBUSY;
-	if (result)
-		return result;
-
-	port->membase = ioremap(port->mapbase, SZ_4K);
-	if (!port->membase) {
-		printk(KERN_ERR "serial00: cannot map io memory\n");
-		release_mem_region(port->mapbase, UART_PORT_SIZE);
-	}
-
-	return port->membase ? 0 : -ENOMEM;
+	return request_mem_region(port->mapbase, UART_PORT_SIZE, "serial_uart00")
+			!= NULL ? 0 : -EBUSY;
 }
 
 /*
@@ -560,8 +558,8 @@ static int uart00_request_port(struct uart_port *port)
 static void uart00_config_port(struct uart_port *port, int flags)
 {
 	if (flags & UART_CONFIG_TYPE) {
-		if (uart00_request_port(port) == 0)
-			port->type = PORT_UART00;
+		port->type = PORT_UART00;
+		uart00_request_port(port);
 	}
 }
 
@@ -600,21 +598,24 @@ static struct uart_ops uart00_pops = {
 };
 
 static struct uart_port uart00_ports[UART_NR] = {
-
-#ifdef CONFIG_ARCH_CAMELOT
-{
-	membase:	(void*)IO_ADDRESS(EXC_UART00_BASE),
-	mapbase:        EXC_UART00_BASE,
-	iotype:		SERIAL_IO_MEM,
-	irq:		IRQ_UART,
-	uartclk:	EXC_AHB2_CLK_FREQUENCY,
-	fifosize:	16,
-	ops:		&uart00_pops,
-	flags:          ASYNC_BOOT_AUTOCONF,
-}
-#endif
+	{
+		membase:	(void*)IO_ADDRESS(EXC_UART00_BASE),
+		mapbase:        EXC_UART00_BASE,
+		irq:		IRQ_UART,
+		uartclk:	EXC_AHB2_CLK_FREQUENCY,
+		fifosize:	16,
+		ops:		&uart00_pops,
+		flags:          ASYNC_BOOT_AUTOCONF,
+	},
+	{
+		membase:	(void*)IO_ADDRESS(EXC_PLD_BLOCK0_BASE + 0x280),
+		mapbase:        EXC_PLD_BLOCK0_BASE,
+		irq:		0,
+		uartclk:	32768000,
+		fifosize:	16,
+		ops:		&uart00_pops,
+	},
 };
-
 
 #ifdef CONFIG_SERIAL_UART00_CONSOLE
 #ifdef used_and_not_const_char_pointer
@@ -622,7 +623,7 @@ static int uart00_console_read(struct uart_port *port, char *s, u_int count)
 {
 	unsigned int status;
 	int c;
-#ifdef DEBUG
+#if DEBUG
 	printk("uart00_console_read() called\n");
 #endif
 
@@ -643,8 +644,7 @@ static int uart00_console_read(struct uart_port *port, char *s, u_int count)
 #endif
 static void uart00_console_write(struct console *co, const char *s, unsigned count)
 {
-#ifdef CONFIG_ARCH_CAMELOT
-	struct uart_port *port = &uart00_ports[0];
+	struct uart_port *port = uart00_ports + co->index;
 	unsigned int status, old_ies;
 	int i;
 
@@ -678,27 +678,22 @@ static void uart00_console_write(struct console *co, const char *s, unsigned cou
 		status = UART_GET_TSR(port);
 	} while (status & UART_TSR_TX_LEVEL_MSK);
 	UART_PUT_IES(port, old_ies);
-#endif
 }
 
 static kdev_t uart00_console_device(struct console *co)
 {
-	return MKDEV(uart00_reg.normal_major, SERIAL_UART00_MINOR + co->index);
+	return MKDEV(SERIAL_UART00_MAJOR, SERIAL_UART00_MINOR + co->index);
 }
 
 static int uart00_console_wait_key(struct console *co)
 {
-#ifdef CONFIG_ARCH_CAMELOT
-	struct uart_port *port = &uart00_ports[0];
+	struct uart_port *port = uart00_ports + co->index;
 	unsigned int status;
 
 	do {
 		status = UART_GET_RSR(port);
 	} while (!UART_RX_DATA(status));
 	return UART_GET_CHAR(port);
-#else
-	return 0;
-#endif
 }
 
 static void /*__init*/ uart00_console_get_options(struct uart_port *port, int *baud, int *parity, int *bits)
@@ -741,17 +736,12 @@ static int __init uart00_console_setup(struct console *co, char *options)
 	int parity = 'n';
 	int flow= 'n';
 
-#ifdef CONFIG_ARCH_CAMELOT
 	/*
 	 * Check whether an invalid uart number has been specified, and
 	 * if so, search for the first available port that does have
 	 * console support.
 	 */
-	port = &uart00_ports[0];
-	co->index = 0;
-#else
-	return -ENODEV;
-#endif
+	port = uart_get_console(uart00_ports, UART_NR, co);
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
@@ -776,11 +766,8 @@ static struct console uart00_console = {
 
 void __init uart00_console_init(void)
 {
-
 	register_console(&uart00_console);
-     
 }
-
 
 #define UART00_CONSOLE	&uart00_console
 #else
@@ -789,8 +776,10 @@ void __init uart00_console_init(void)
 
 static struct uart_driver uart00_reg = {
 	owner:                  NULL,
+	normal_major:		SERIAL_UART00_MAJOR,
 	normal_name:		SERIAL_UART00_NAME,
 	normal_driver:		&normal,
+	callout_major:		CALLOUT_UART00_MAJOR,
 	callout_name:		CALLOUT_UART00_NAME,
 	callout_driver:		&callout,
 	table:			uart00_table,
@@ -798,147 +787,16 @@ static struct uart_driver uart00_reg = {
 	termios_locked:		uart00_termios_locked,
 	minor:			SERIAL_UART00_MINOR,
 	nr:			UART_NR,
-	port:			uart00_ports,
 	state:			NULL,
+	port:			uart00_ports,
 	cons:			UART00_CONSOLE,
 };
 
-struct dev_port_entry{
-	struct uart_port *port;
-};
-
-static struct dev_port_entry dev_port_map[UART_NR];
-
-#ifdef CONFIG_PLD_HOTSWAP
-/*
- * Keep a mapping of dev_info addresses -> port lines to use when
- * removing ports dev==NULL indicates unused entry
- */
-
-struct uart00_ps_data{
-	unsigned int clk;
-	unsigned int fifosize;
-};
-
-int uart00_add_device(struct pldhs_dev_info* dev_info, void* dev_ps_data)
-{
-	struct uart00_ps_data* dev_ps=dev_ps_data;
-	struct uart_port * port;
-	int i,result;
-
-	i=0;
-	while(dev_port_map[i].port)
-		i++;
-
-	if(i==UART_NR){
-		printk(KERN_WARNING "uart00: Maximum number of ports reached\n");
-		return 0;
-	}
-
-	port=kmalloc(sizeof(struct uart_port),GFP_KERNEL);
-	if(!port)
-		return -ENOMEM;
-
-	printk("clk=%d fifo=%d\n",dev_ps->clk,dev_ps->fifosize);
-	port->membase=0;
-	port->mapbase=dev_info->base_addr;
-	port->iotype=SERIAL_IO_MEM;
-	port->irq=dev_info->irq;
-	port->uartclk=dev_ps->clk;
-	port->fifosize=dev_ps->fifosize;
-	port->ops=&uart00_pops;
-	port->line=i;
-	port->flags=ASYNC_BOOT_AUTOCONF;
-
-	result=uart_register_port(&uart00_reg, port);
-	if(result<0){
-		printk("uart_register_port returned %d\n",result);
-		return result;
-	}
-	dev_port_map[i].port=port;
-	printk("uart00: added device at %lx as ttyUA%d\n",dev_port_map[i].port->mapbase,i);
-	return 0;
-
-}
-
-int uart00_remove_devices(void)
-{
-	int i,result;
-
-
-	result=0;
-	for(i=1;i<UART_NR;i++){
-		if(dev_port_map[i].port){
-			uart_unregister_port(&uart00_reg,i);
-			/* port removed sucessfully, so now tidy up */
-			kfree(dev_port_map[i].port);
-			dev_port_map[i].port=NULL;
-		}
-	}
-	return 0;
-
-}
-
-#if CONFIG_PROC_FS
-
-
-int uart00_proc_read(char* buf,char** start,off_t offset,int count,int *eof,void *data){
-
-	int i,len=0;
-	struct uart_port *port;
-	int limit = count - 80;
-	char ps_data[80];
-	if(*start)
-		buf=*start;
-	for(i=0;(i<UART_NR)&&(len<limit);i++){
-		if(dev_port_map[i].port){
-			port=dev_port_map[i].port;
-			sprintf(ps_data,"clk, %dHz, fifo size, %dbytes",
-				port->uartclk,port->fifosize);
-			len+=PLDHS_READ_PROC_DATA(buf+len,"uart00",i,
-					    port->mapbase,port->irq,ps_data);
-
-		}
-	}
-	*eof=1;
-	return len;
-}
-				
-
-
-#endif	
-struct pld_hotswap_ops uart00_pldhs_ops={
-	name: "uart00",
-	add_device: uart00_add_device,
-	remove_devices:uart00_remove_devices,
-	proc_read:uart00_proc_read
-
-};
-
-#endif
-
 static int __init uart00_init(void)
 {
-	int ret;
-	int i;
-
-	for(i=0;i<UART_NR;i++){
-		uart00_ports[i].ops=&uart00_pops;
-	}
-
-	pldhs_register_driver(&uart00_pldhs_ops);
-	unregister_console(&uart00_console);
-	ret=uart_register_driver(&uart00_reg);	
-	printk("uart00: using major number %d\n",uart00_reg.normal_major);
-	printk("uart00: using callout major number %d\n",uart00_reg.callout_major);
-	register_console(&uart00_console);
-#ifdef CONFIG_PROC_FS
-	create_proc_read_entry("driver/uart00",0,NULL,uart00_proc_read,NULL);
-#endif
-#ifdef CONFIG_ARCH_CAMELOT
-	dev_port_map[0].port=uart00_ports;
-#endif
-	return ret;
+	printk(KERN_WARNING "serial_uart00:Using temporary major/minor pairs - these WILL change in the future\n");
+	return uart_register_driver(&uart00_reg);
+	
 }
 
 

@@ -204,6 +204,9 @@
 extern void (*sa1100fb_backlight_power)(int on);
 extern void (*sa1100fb_lcd_power)(int on);
 
+void (*sa1100fb_blank_helper)(int blank);
+EXPORT_SYMBOL(sa1100fb_blank_helper);
+
 /*
  * IMHO this looks wrong.  In 8BPP, length should be 8.
  */
@@ -1423,9 +1426,13 @@ static void sa1100fb_blank(int blank, struct fb_info *info)
 			for (i = 0; i < fbi->palette_size; i++)
 				sa1100fb_setpalettereg(i, 0, 0, 0, 0, info);
 		sa1100fb_schedule_task(fbi, C_DISABLE);
+		if (sa1100fb_blank_helper)
+			sa1100fb_blank_helper(blank);
 		break;
 
 	case VESA_NO_BLANKING:
+		if (sa1100fb_blank_helper)
+			sa1100fb_blank_helper(blank);
 		if (fbi->fb.disp->visual == FB_VISUAL_PSEUDOCOLOR ||
 		    fbi->fb.disp->visual == FB_VISUAL_STATIC_PSEUDOCOLOR)
 			fb_set_cmap(&fbi->fb.cmap, 1, sa1100fb_setcolreg, info);

@@ -3,7 +3,7 @@
  *
  * Copyright 2001 Compaq Computer Corporation.
  *
- * $Id: bootldr.h,v 1.1 2001/11/28 23:16:17 jamey Exp $
+ * $Id: bootldr.h,v 1.1 2002/01/11 23:18:15 gdavis Exp $
  *
  * Use consistent with the GNU GPL is permitted,
  * provided that this copyright notice is

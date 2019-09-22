@@ -140,18 +140,18 @@ static __devinitdata struct usb_device_id id_table_combined [] = {
 	{ }		/* Terminating entry */
 };
 
-static struct usb_device_id mct_u232_table [] = {
+static __devinitdata struct usb_device_id mct_u232_table [] = {
         { USB_DEVICE(MCT_U232_VID, MCT_U232_PID) },
 	{ USB_DEVICE(MCT_U232_BELKIN_F5U109_VID, MCT_U232_BELKIN_F5U109_PID) },
         { }                        /* Terminating entry */
 };
 
-static struct usb_device_id mct_u232_sitecom_table [] = {
+static __devinitdata struct usb_device_id mct_u232_sitecom_table [] = {
         { USB_DEVICE(MCT_U232_VID, MCT_U232_SITECOM_PID) },
         { }                        /* Terminating entry */
 };
 
-static struct usb_device_id mct_u232_du_h3sp_table [] = {
+static __devinitdata struct usb_device_id mct_u232_du_h3sp_table [] = {
         { USB_DEVICE(MCT_U232_VID, MCT_U232_DU_H3SP_PID) },
         { }                        /* Terminating entry */
 };

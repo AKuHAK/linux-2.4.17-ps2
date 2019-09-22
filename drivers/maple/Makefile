@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1.1.1 2001/10/15 20:44:59 mrbrown Exp $
+# $Id: Makefile,v 1.1 2001/12/12 23:44:45 jsiegel Exp $
 # Makefile for Maple Bus drivers
 
 O_TARGET	:= maplebus.o

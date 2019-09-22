@@ -1586,10 +1586,8 @@ ext3_clear_blocks(handle_t *handle, struct inode *inode, struct buffer_head *bh,
 		}
 		ext3_mark_inode_dirty(handle, inode);
 		ext3_journal_test_restart(handle, inode);
-		if (bh) {
-			BUFFER_TRACE(bh, "retaking write access");
-			ext3_journal_get_write_access(handle, bh);
-		}
+		BUFFER_TRACE(bh, "get_write_access");
+		ext3_journal_get_write_access(handle, bh);
 	}
 
 	/*
