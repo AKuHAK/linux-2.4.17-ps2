@@ -7,7 +7,7 @@
  * Public License Version 2. See the file "COPYING" in the main
  * directory of this archive for more details.
  *
- * $Id: irq.h,v 1.1 2001/10/28 09:20:31 lethal Exp $
+ * $Id: irq.h,v 1.1 2001/12/08 22:11:34 ppopov Exp $
  */
 
 #ifndef __ASM_PS2_IRQ_H
@@ -16,6 +16,8 @@
 /*
  * PlayStation 2 interrupts
  */
+
+#define NR_PS2_IRQS	48
 
 /* INTC */
 #define IRQ_INTC	0
