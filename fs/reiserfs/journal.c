@@ -740,9 +740,17 @@ reiserfs_panic(s, "journal-539: flush_commit_list: BAD count(%d) > orig_commit_l
 		   atomic_read(&(jl->j_commit_left)));
   }
 
+  /* ok, all transactions were send to drive, flush them to the media */
+  if(tbh->b_dev) {
+      flush_hardwarebuf(tbh->b_dev);
+  }
+
   mark_buffer_dirty(jl->j_commit_bh) ;
   ll_rw_block(WRITE, 1, &(jl->j_commit_bh)) ;
   wait_on_buffer(jl->j_commit_bh) ;
+  if(jl->j_commit_bh->b_dev) {
+    flush_hardwarebuf(jl->j_commit_bh->b_dev);
+  }
   if (!buffer_uptodate(jl->j_commit_bh)) {
     reiserfs_panic(s, "journal-615: buffer write failed\n") ;
   }
@@ -837,6 +845,9 @@ static int _update_journal_header_block(struct super_block *p_s_sb, unsigned lon
     set_bit(BH_Dirty, &(SB_JOURNAL(p_s_sb)->j_header_bh->b_state)) ;
     ll_rw_block(WRITE, 1, &(SB_JOURNAL(p_s_sb)->j_header_bh)) ;
     wait_on_buffer((SB_JOURNAL(p_s_sb)->j_header_bh)) ; 
+    if ( SB_JOURNAL(p_s_sb)->j_header_bh->b_dev ){
+      flush_hardwarebuf( SB_JOURNAL(p_s_sb)->j_header_bh->b_dev);
+    }
     debug_lock_break(1);
     conditional_schedule();
     if (!buffer_uptodate(SB_JOURNAL(p_s_sb)->j_header_bh)) {
@@ -1060,6 +1071,9 @@ free_cnode:
 	  reiserfs_panic(s, "journal-1011: cn->bh is NULL\n") ;
 	}
 	wait_on_buffer(cn->bh) ;
+        if (cn->bh->b_dev)
+            flush_hardwarebuf(cn->bh->b_dev);
+
 	if (!cn->bh) {
 	  reiserfs_panic(s, "journal-1012: cn->bh is NULL\n") ;
 	}
@@ -1166,6 +1180,8 @@ loop_start:
             clear_bit(BLOCK_NEEDS_FLUSH, &cn->state) ;
             if (!pjl && cn->bh) {
                 wait_on_buffer(cn->bh) ;
+                if (cn->bh->b_dev)
+                    flush_hardwarebuf(cn->bh->b_dev);
             }
             /* check again, someone could have logged while we scheduled */
             pjl = find_newer_jl_for_cn(cn) ;
@@ -1563,6 +1579,10 @@ static int journal_read_transaction(struct super_block *p_s_sb, unsigned long cu
   }
   for (i = 0 ; i < le32_to_cpu(desc->j_len) ; i++) {
     wait_on_buffer(real_blocks[i]) ; 
+    /* flush replayed blocks */
+    if(real_blocks[i]->b_dev) {
+      flush_hardwarebuf(real_blocks[i]->b_dev);
+    }
     if (!buffer_uptodate(real_blocks[i])) {
       reiserfs_warning("journal-1226: REPLAY FAILURE, fsck required! buffer write failed\n") ;
       brelse_array(real_blocks + i, le32_to_cpu(desc->j_len) - i) ;
